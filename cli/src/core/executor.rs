@@ -7,6 +7,7 @@ use miette::Result;
 pub async fn execute(options: ValidatedOptions) -> Result<()> {
     match options {
         ValidatedOptions::Init {} => commands::init::execute().await,
+        ValidatedOptions::Build {} => commands::build::execute().await,
         ValidatedOptions::Help {} => commands::help::execute().await,
         ValidatedOptions::None => {
             // Return the custom error instead of exiting

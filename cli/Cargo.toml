@@ -15,4 +15,11 @@ inquire = "0.6.2"
 toml = "0.7.6"
 serde = { version = "1.0.183", features = ["derive"] }
 strum = { version = "0.25.0", features = ["derive"] }
-owo-colors = "3.5.0"
+colored = "2.0.4"
+keyring = "2.0.5"
+dirs = "5.0.1"
+aws-sdk-account = "0.29.0"
+aws-config = "0.56.0"
+aws-credential-types = "0.56.0"
+aws-types = "0.56.0"
+comfy-table = "7.0.1"

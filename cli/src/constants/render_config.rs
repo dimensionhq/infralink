@@ -9,16 +9,8 @@ pub static RENDER_CONFIG: Lazy<RenderConfig> = Lazy::new(|| {
                 .with_attr(Attributes::BOLD),
         )
         .with_prompt_prefix(Styled::new(">").with_fg(Color::DarkGrey))
-        .with_default_value(
-            StyleSheet::new()
-                .with_fg(Color::LightMagenta)
-                .with_attr(Attributes::ITALIC),
-        )
-        .with_answer(
-            StyleSheet::new()
-                .with_fg(Color::LightCyan)
-                .with_attr(Attributes::ITALIC),
-        )
+        .with_default_value(StyleSheet::new().with_fg(Color::LightMagenta))
+        .with_answer(StyleSheet::new().with_fg(Color::LightCyan))
         .with_selected_option(Some(
             StyleSheet::new()
                 .with_fg(Color::LightCyan)
