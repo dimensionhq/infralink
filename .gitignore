@@ -1,2 +1,6 @@
 cli/infra.toml
+cli/target
+apis/pricing/.env
+apis/pricing/regions
+apis/pricing/target
 target/
