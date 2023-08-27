@@ -39,7 +39,7 @@ pub async fn update_on_demand_pricing_index(
     );
 
     regions_stream
-        .for_each_concurrent(10, |fut| async {
+        .for_each_concurrent(6, |fut| async {
             if let Err(err) = fut.await {
                 // Handle the error here, maybe log it
                 println!("Failed to update pricing for region: {:?}", err);

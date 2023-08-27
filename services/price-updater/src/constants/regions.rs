@@ -1,4 +1,4 @@
-pub const AWS_REGIONS: [&'static str; 32] = [
+pub const AWS_REGIONS: [&'static str; 28] = [
     "us-east-1",
     "us-east-2",
     "us-west-1",
@@ -14,8 +14,6 @@ pub const AWS_REGIONS: [&'static str; 32] = [
     "ap-northeast-1",
     "ap-northeast-2",
     "ap-northeast-3",
-    "cn-north-1",
-    "cn-northwest-1",
     "ca-central-1",
     "eu-central-1",
     "eu-central-2",
@@ -29,6 +27,4 @@ pub const AWS_REGIONS: [&'static str; 32] = [
     "me-south-1",
     "me-central-1",
     "sa-east-1",
-    "us-gov-east-1",
-    "us-gov-west-1",
 ];
