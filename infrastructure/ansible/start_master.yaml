@@ -1,0 +1,21 @@
+- name: Start master
+  gather_facts: false
+  hosts: master
+  become: true
+  strategy: free
+  tasks:
+    - name: Start k0s master
+      ansible.builtin.shell:
+        cmd: |
+          mkdir -p /etc/k0s
+          k0s config create > /etc/k0s/k0s.yaml
+          k0s install controller -c /etc/k0s/k0s.yaml
+          sleep 5
+          k0s start
+          sleep 5
+          k0s token create --role=worker --expiry=2h > /tmp/token
+    - name: Download node token
+      ansible.builtin.fetch:
+        src: /tmp/token
+        dest: token
+        flat: yes
