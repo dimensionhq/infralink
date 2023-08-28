@@ -3,7 +3,6 @@ use aws_sdk_ec2::primitives::DateTime;
 use aws_sdk_ec2::types::{InstanceType, SpotPrice};
 use colored::Colorize;
 use futures_util::stream::StreamExt;
-use indicatif::{ProgressBar, ProgressStyle};
 use regex::Regex;
 use reqwest;
 use serde::{Deserialize, Serialize};
@@ -157,34 +156,14 @@ pub async fn update_pricing_for_region(
     // Send a GET request
     let response = client.get(&url).send().await?;
 
-    // Get the content length for the progress bar
-    let content_length = response.content_length().unwrap_or(0);
-
-    // Create a progress bar
-    let pb = ProgressBar::new(content_length);
-    pb.set_style(
-        ProgressStyle::default_bar()
-            .template(
-                "[{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec})",
-            )
-            .unwrap()
-            .progress_chars("#>-"),
-    );
-
     // Download the content with progress
     let mut content = Vec::new();
     let mut stream = response.bytes_stream();
 
     while let Some(chunk) = stream.next().await {
         let chunk = chunk?;
-        pb.inc(chunk.len() as u64);
         content.extend_from_slice(&chunk);
     }
-
-    pb.finish_with_message(format!(
-        "Successfully downloaded EC2 pricing for {}.",
-        region_code
-    ));
 
     // Parse the JSON content
     let region_response: Value = serde_json::from_slice(&content)?;
