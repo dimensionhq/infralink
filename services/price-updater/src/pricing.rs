@@ -39,7 +39,7 @@ pub async fn update_on_demand_pricing_index(
     );
 
     regions_stream
-        .for_each_concurrent(6, |fut| async {
+        .for_each_concurrent(5, |fut| async {
             if let Err(err) = fut.await {
                 // Handle the error here, maybe log it
                 println!("Failed to update pricing for region: {:?}", err);
@@ -267,6 +267,8 @@ pub async fn update_pricing_for_region(
         }
     }
 
+    drop(region_response);
+
     // Prepare a vector to collect all pricing entries
     let mut pricing_entries: Vec<Pricing> = Vec::new();
 
@@ -293,6 +295,8 @@ pub async fn update_pricing_for_region(
             pricing_entries.push(pricing_entry);
         }
     }
+
+    drop(sku_to_instance);
 
     let pricing_entries_len = pricing_entries.len();
 
