@@ -1,18 +1,13 @@
-pub mod constants;
 pub mod db;
 pub mod models;
 pub mod routes;
 pub mod validator;
 
 use actix_web::{web::Data, App, HttpServer};
-use dotenv::dotenv;
 use routes::{on_demand, spot};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // Load .env
-    dotenv().ok();
-
     // Create env_logger with log level set to INFO
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
@@ -30,7 +25,7 @@ async fn main() -> std::io::Result<()> {
             .service(on_demand)
             .service(spot)
     })
-    .bind("127.0.0.1:8080")?
+    .bind("0.0.0.0:8080")?
     .run()
     .await
 }
