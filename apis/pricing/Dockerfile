@@ -34,7 +34,5 @@ FROM gcr.io/distroless/static-debian11
 # Copy the build artifact from the builder stage
 COPY --from=builder /usr/src/pricing/target/x86_64-unknown-linux-musl/release/pricing /pricing
 
-EXPOSE 8080
-
 # Set the start command to run your binary
 CMD ["/pricing"]
