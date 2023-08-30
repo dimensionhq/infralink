@@ -1,0 +1,72 @@
+name: Rust
+
+on: [push]
+
+jobs:
+  linux:
+    name: Linux Pipeline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        
+      - name: Toolchain Install
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+          
+      - name: Cargo Format
+        run: cargo fmt --all
+      - name: Cargo Clippy
+        run: cargo clippy --fix
+        
+      - name: Commit & Push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A
+          git commit -m "refactor(ci): better formatting & clippy fixes" || echo "No changes to commit"
+          git push
+
+  windows:
+    name: Windows Pipeline
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        
+      - name: Toolchain Install
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+          
+      - name: Cargo Format
+        run: cargo fmt --all
+      - name: Cargo Clippy
+        run: cargo clippy
+  
+  macos:
+    name: MacOS Pipeline
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        
+      - name: Toolchain Install
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+          
+      - name: Cargo Format
+        run: cargo fmt --all
+      - name: Cargo Clippy
+        run: cargo clippy
