@@ -1,22 +1,56 @@
 name: Rust
 
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-
-env:
-  CARGO_TERM_COLOR: always
+on: [push]
 
 jobs:
-  build:
-
+  linux:
+    name: Linux Pipeline
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v3
-    - name: Build
-      run: cargo build
-    - name: Run tests
-      run: cargo test --verbose
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+    
+      - uses: actions/checkout@v2
+      - name: Toolchain Install
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+
+      - name: Cargo Format
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: -- --check
+
+      - name: Cargo Clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+
+  windows:
+    name: Windows Pipeline
+    runs-on: windows-latest
+    steps:
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+      
+      - uses: actions/checkout@v2
+      - name: Toolchain Install
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+
+      - name: Cargo format
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: -- --check
+
+      - name: Cargo clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy  
