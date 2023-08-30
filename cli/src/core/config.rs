@@ -164,9 +164,11 @@ impl InternalAWSConfiguration {
         std::io::Write::write_all(&mut std::io::BufWriter::new(file), configuration.as_bytes())
             .unwrap();
 
-        // Set permissions to 600 (read/write for owner, no access for others) on Unix-like systems
-        let mut permissions = std::fs::metadata(&file_path).unwrap().permissions();
-        permissions.set_mode(0o600);
-        std::fs::set_permissions(&file_path, permissions).unwrap();
+        if cfg!(unix) {
+            // Set permissions to 600 (read/write for owner, no access for others) on Unix-like systems
+            let mut permissions = std::fs::metadata(&file_path).unwrap().permissions();
+            permissions.set_mode(0o600);
+            std::fs::set_permissions(&file_path, permissions).unwrap();
+        }
     }
 }

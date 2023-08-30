@@ -1,14 +1,15 @@
 use std::str::FromStr;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use strum_macros::EnumIter;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
 pub enum Region {
     Aws(AwsRegion),
     None,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
+#[derive(EnumIter, Debug, PartialEq, Eq, Hash, Clone)]
 pub enum AwsRegion {
     USEast1,
     USEast2,
@@ -25,8 +26,6 @@ pub enum AwsRegion {
     ApNorthEast1,
     ApNorthEast2,
     ApNorthEast3,
-    CnNorth1,
-    CnNorthWest1,
     CaCentral1,
     EuCentral1,
     EuCentral2,
@@ -40,8 +39,6 @@ pub enum AwsRegion {
     MeSouth1,
     MeCentral1,
     SaEast1,
-    UsGovEast1,
-    UsGovWest1,
 }
 
 impl FromStr for AwsRegion {
@@ -64,8 +61,6 @@ impl FromStr for AwsRegion {
             "ap-northeast-1" => Ok(AwsRegion::ApNorthEast1),
             "ap-northeast-2" => Ok(AwsRegion::ApNorthEast2),
             "ap-northeast-3" => Ok(AwsRegion::ApNorthEast3),
-            "cn-north-1" => Ok(AwsRegion::CnNorth1),
-            "cn-northwest-1" => Ok(AwsRegion::CnNorthWest1),
             "ca-central-1" => Ok(AwsRegion::CaCentral1),
             "eu-central-1" => Ok(AwsRegion::EuCentral1),
             "eu-central-2" => Ok(AwsRegion::EuCentral2),
@@ -79,8 +74,6 @@ impl FromStr for AwsRegion {
             "me-south-1" => Ok(AwsRegion::MeSouth1),
             "me-central-1" => Ok(AwsRegion::MeCentral1),
             "sa-east-1" => Ok(AwsRegion::SaEast1),
-            "us-gov-east-1" => Ok(AwsRegion::UsGovEast1),
-            "us-gov-west-1" => Ok(AwsRegion::UsGovWest1),
             _ => Err(String::from("invalid region")),
         }
     }
@@ -104,8 +97,6 @@ impl AwsRegion {
             AwsRegion::ApNorthEast1 => String::from("ap-northeast-1"),
             AwsRegion::ApNorthEast2 => String::from("ap-northeast-2"),
             AwsRegion::ApNorthEast3 => String::from("ap-northeast-3"),
-            AwsRegion::CnNorth1 => String::from("cn-north-1"),
-            AwsRegion::CnNorthWest1 => String::from("cn-northwest-1"),
             AwsRegion::CaCentral1 => String::from("ca-central-1"),
             AwsRegion::EuCentral1 => String::from("eu-central-1"),
             AwsRegion::EuCentral2 => String::from("eu-central-2"),
@@ -119,174 +110,61 @@ impl AwsRegion {
             AwsRegion::MeSouth1 => String::from("me-south-1"),
             AwsRegion::MeCentral1 => String::from("me-central-1"),
             AwsRegion::SaEast1 => String::from("sa-east-1"),
-            AwsRegion::UsGovEast1 => String::from("us-gov-east-1"),
-            AwsRegion::UsGovWest1 => String::from("us-gov-west-1"),
         }
     }
 
     // region, price for small deployment, price for large deployment
-    pub fn to_string_with_price(&self) -> (String, String, (f32, f32)) {
+    pub fn display_name(&self) -> String {
         match self {
-            AwsRegion::USEast1 => (
-                String::from("US East (N. Virginia)"),
-                String::from("us-east-1"),
-                (7.14, 427.03),
-            ),
-            AwsRegion::USEast2 => (
-                String::from("US East (Ohio)"),
-                String::from("us-east-2"),
-                (6.10, 427.03),
-            ),
-            AwsRegion::USWest1 => (
-                String::from("US West (N. California)"),
-                String::from("us-west-1"),
-                (7.16, 490.96),
-            ),
-            AwsRegion::USWest2 => (
-                String::from("US West (Oregon)"),
-                String::from("us-west-2"),
-                (7.05, 476.08),
-            ),
-            AwsRegion::AfSouth1 => (
-                String::from("Africa (Cape Town)"),
-                String::from("af-south-1"),
-                (6.80, 590.08),
-            ),
-            AwsRegion::ApSouth1 => (
-                String::from("Asia Pacific (Mumbai)"),
-                String::from("ap-south-1"),
-                (4.24, 342.73),
-            ),
-            AwsRegion::ApSouth2 => (
-                String::from("Asia Pacific (Hyderabad)"),
-                String::from("ap-south-2"),
-                (4.09, 342.73),
-            ),
-            AwsRegion::ApEast1 => (
-                String::from("Asia Pacific (Hong Kong)"),
-                String::from("ap-east-1"),
-                (8.03, 342.73),
-            ),
-            AwsRegion::ApSouthEast1 => (
-                String::from("Asia Pacific (Singapore)"),
-                String::from("ap-southeast-1"),
-                (8.27, 544.45),
-            ),
-            AwsRegion::ApSouthEast2 => (
-                String::from("Asia Pacific (Sydney)"),
-                String::from("ap-southeast-2"),
-                (6.57, 595.54),
-            ),
-            AwsRegion::ApSouthEast3 => (
-                String::from("Asia Pacific (Jakarta)"),
-                String::from("ap-southeast-3"),
-                (6.57, 556.74),
-            ),
-            AwsRegion::ApSouthEast4 => (
-                String::from("Asia Pacific (Melbourne)"),
-                String::from("ap-southeast-4"),
-                (6.57, 0.000),
-            ),
-            AwsRegion::ApNorthEast1 => (
-                String::from("Asia Pacific (Tokyo)"),
-                String::from("ap-northeast-1"),
-                (6.70, 0.0000000000),
-            ),
-            AwsRegion::ApNorthEast2 => (
-                String::from("Asia Pacific (Seoul)"),
-                String::from("ap-northeast-2"),
-                (6.44, 0.0000000000),
-            ),
-            AwsRegion::ApNorthEast3 => (
-                String::from("Asia Pacific (Osaka)"),
-                String::from("ap-northeast-3"),
-                (6.66, 0.0000000000),
-            ),
-            AwsRegion::CnNorth1 => (
-                String::from("China (Beijing)"),
-                String::from("cn-north-1"),
-                (0.0000000000, 0.0000000000),
-            ),
-            AwsRegion::CnNorthWest1 => (
-                String::from("China (Ningxia)"),
-                String::from("cn-northwest-1"),
-                (0.0000000000, 0.0000000000),
-            ),
-            AwsRegion::CaCentral1 => (
-                String::from("Canada (Central)"),
-                String::from("ca-central-1"),
-                (5.94, 0.0000000000),
-            ),
-            AwsRegion::EuCentral1 => (
-                String::from("Europe (Frankfurt)"),
-                String::from("eu-central-1"),
-                (6.20, 0.0000000000),
-            ),
-            AwsRegion::EuCentral2 => (
-                String::from("Europe (Zurich)"),
-                String::from("eu-central-2"),
-                (6.85, 0.0000000000),
-            ),
-            AwsRegion::EuWest1 => (
-                String::from("Europe (Ireland)"),
-                String::from("eu-west-1"),
-                (7.61, 0.0000000000),
-            ),
-            AwsRegion::EuWest2 => (
-                String::from("Europe (London)"),
-                String::from("eu-west-2"),
-                (7.38, 0.0000000000),
-            ),
-            AwsRegion::EuWest3 => (
-                String::from("Europe (Paris)"),
-                String::from("eu-west-3"),
-                (6.01, 0.0000000000),
-            ),
-            AwsRegion::EuSouth1 => (
-                String::from("Europe (Milan)"),
-                String::from("eu-south-1"),
-                (6.07, 0.0000000000),
-            ),
-            AwsRegion::EuSouth2 => (
-                String::from("Europe (Spain)"),
-                String::from("eu-south-2"),
-                (5.77, 0.0000000000),
-            ),
-            AwsRegion::EuNorth1 => (
-                String::from("Europe (Stockholm)"),
-                String::from("eu-north-1"),
-                (5.42, 0.0000000000),
-            ),
-            AwsRegion::IlCentral1 => (
-                String::from("Israel (Tel Aviv)"),
-                String::from("il-central-1"),
-                (8.68, 0.0000000000),
-            ),
-            AwsRegion::MeSouth1 => (
-                String::from("Middle East (Bahrain)"),
-                String::from("me-south-1"),
-                (6.29, 0.0000000000),
-            ),
-            AwsRegion::MeCentral1 => (
-                String::from("Middle East (UAE)"),
-                String::from("me-central-1"),
-                (6.34, 0.0000000000),
-            ),
-            AwsRegion::SaEast1 => (
-                String::from("South America (Sao Paulo)"),
-                String::from("sa-east-1"),
-                (8.80, 0.0000000000),
-            ),
-            AwsRegion::UsGovEast1 => (
-                String::from("AWS GovCloud (US-East)"),
-                String::from("us-gov-east-1"),
-                (8.70, 0.0000000000),
-            ),
-            AwsRegion::UsGovWest1 => (
-                String::from("AWS GovCloud (US-West)"),
-                String::from("us-gov-west-1"),
-                (8.70, 0.0000000000),
-            ),
+            AwsRegion::USEast1 => String::from("US East (N. Virginia)"),
+            AwsRegion::USEast2 => String::from("US East (Ohio)"),
+            AwsRegion::USWest1 => String::from("US West (N. California)"),
+            AwsRegion::USWest2 => String::from("US West (Oregon)"),
+            AwsRegion::AfSouth1 => String::from("Africa (Cape Town)"),
+            AwsRegion::ApSouth1 => String::from("Asia Pacific (Mumbai)"),
+            AwsRegion::ApSouth2 => String::from("Asia Pacific (Hyderabad)"),
+            AwsRegion::ApEast1 => String::from("Asia Pacific (Hong Kong)"),
+            AwsRegion::ApSouthEast1 => String::from("Asia Pacific (Singapore)"),
+            AwsRegion::ApSouthEast2 => String::from("Asia Pacific (Sydney)"),
+            AwsRegion::ApSouthEast3 => String::from("Asia Pacific (Jakarta)"),
+            AwsRegion::ApSouthEast4 => String::from("Asia Pacific (Melbourne)"),
+            AwsRegion::ApNorthEast1 => String::from("Asia Pacific (Tokyo)"),
+            AwsRegion::ApNorthEast2 => String::from("Asia Pacific (Seoul)"),
+            AwsRegion::ApNorthEast3 => String::from("Asia Pacific (Osaka)"),
+            AwsRegion::CaCentral1 => String::from("Canada (Central)"),
+            AwsRegion::EuCentral1 => String::from("Europe (Frankfurt)"),
+            AwsRegion::EuCentral2 => String::from("Europe (Zurich)"),
+            AwsRegion::EuWest1 => String::from("Europe (Ireland)"),
+            AwsRegion::EuWest2 => String::from("Europe (London)"),
+            AwsRegion::EuWest3 => String::from("Europe (Paris)"),
+            AwsRegion::EuSouth1 => String::from("Europe (Milan)"),
+            AwsRegion::EuSouth2 => String::from("Europe (Spain)"),
+            AwsRegion::EuNorth1 => String::from("Europe (Stockholm)"),
+            AwsRegion::IlCentral1 => String::from("Israel (Tel Aviv)"),
+            AwsRegion::MeSouth1 => String::from("Middle East (Bahrain)"),
+            AwsRegion::MeCentral1 => String::from("Middle East (UAE)"),
+            AwsRegion::SaEast1 => String::from("South America (Sao Paulo)"),
         }
+    }
+}
+
+// Custom serialization
+impl Serialize for AwsRegion {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.code())
+    }
+}
+
+// Custom deserialization
+impl<'de> Deserialize<'de> for AwsRegion {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        AwsRegion::from_str(&s).map_err(serde::de::Error::custom)
     }
 }
