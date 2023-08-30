@@ -3,7 +3,6 @@ pub mod constants;
 pub mod db;
 pub mod helper;
 pub mod models;
-pub mod pricing;
 pub mod types;
 
 use std::time::Duration;
