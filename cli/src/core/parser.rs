@@ -40,7 +40,7 @@ pub async fn parse() -> Result<()> {
             continue;
         }
 
-        if arg.starts_with("-") {
+        if arg.starts_with('-') {
             // Remove all leading "-"
             let flag = arg.trim_start_matches('-');
 
@@ -49,7 +49,7 @@ pub async fn parse() -> Result<()> {
                 let next_arg = args[index + 1].clone();
 
                 // Ensure it isn't a flag
-                if !next_arg.starts_with("-") {
+                if !next_arg.starts_with('-') {
                     options.insert(flag.to_string(), Some(next_arg));
 
                     // Skip the next iteration
@@ -60,10 +60,8 @@ pub async fn parse() -> Result<()> {
             } else {
                 options.insert(flag.to_string(), None);
             }
-        } else {
-            if index > 1 {
-                options.insert(arg.to_string(), None);
-            }
+        } else if index > 1 {
+            options.insert(arg.to_string(), None);
         }
     }
 

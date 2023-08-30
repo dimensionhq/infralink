@@ -11,7 +11,7 @@ pub async fn execute(options: ValidatedOptions) -> Result<()> {
         ValidatedOptions::Help {} => commands::help::execute().await,
         ValidatedOptions::None => {
             // Return the custom error instead of exiting
-            return Err(CommandError::CommandNotFound.into());
+            Err(CommandError::CommandNotFound.into())
         }
     }
 }

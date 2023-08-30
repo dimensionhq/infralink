@@ -95,8 +95,8 @@ impl InfrastructureConfigurationBuilder {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum InternalConfiguration {
-    AWS(InternalAWSConfiguration),
-    GCP,
+    Aws(InternalAWSConfiguration),
+    Gcp,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -147,10 +147,7 @@ impl InternalAWSConfiguration {
     }
 
     pub fn save(&self, app_name: String) {
-        let path = dirs::home_dir()
-            .unwrap()
-            .join(".infralink/")
-            .join(app_name.clone());
+        let path = dirs::home_dir().unwrap().join(".infralink/").join(app_name);
 
         if !path.exists() {
             std::fs::create_dir_all(&path).unwrap();

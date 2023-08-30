@@ -9,7 +9,6 @@ use inquire::{Password, PasswordDisplayMode, Select, Text};
 use keyring::Entry;
 use miette::Result;
 
-use crate::api::pricing;
 use crate::models::region::{AwsRegion, Region};
 use crate::{
     api,
@@ -61,7 +60,7 @@ pub async fn execute() -> Result<()> {
             if InternalAWSConfiguration::exists(app_name.clone()) {
                 // load the user's AWS credentials from ~/.infralink/<app_name>
                 internal_configuration =
-                    InternalConfiguration::AWS(InternalAWSConfiguration::load(app_name.clone()));
+                    InternalConfiguration::Aws(InternalAWSConfiguration::load(app_name.clone()));
             } else {
                 // guide the user to getting their AWS credentials
                 println!(
@@ -88,7 +87,7 @@ pub async fn execute() -> Result<()> {
                     .prompt()
                     .unwrap();
 
-                internal_configuration = InternalConfiguration::AWS(InternalAWSConfiguration::new(
+                internal_configuration = InternalConfiguration::Aws(InternalAWSConfiguration::new(
                     access_key_id.clone(),
                 ));
 
@@ -119,7 +118,7 @@ pub async fn execute() -> Result<()> {
     // get the regions available for the user's cloud provider & account
     match cloud_provider {
         CloudProvider::Aws => {
-            if let InternalConfiguration::AWS(aws_config) = internal_configuration {
+            if let InternalConfiguration::Aws(aws_config) = internal_configuration {
                 let regions = api::aws::api::list_regions(aws_config).await;
 
                 let mut table = Table::new();
@@ -149,7 +148,7 @@ pub async fn execute() -> Result<()> {
                     let price1 = small_deployment_prices.get(region1).unwrap();
                     let price2 = small_deployment_prices.get(region2).unwrap();
                     price1
-                        .partial_cmp(&price2)
+                        .partial_cmp(price2)
                         .unwrap_or(std::cmp::Ordering::Equal)
                 });
 
@@ -188,7 +187,7 @@ pub async fn execute() -> Result<()> {
 
                 let region_codes: Vec<String> = regions_vec
                     .iter()
-                    .map(|(region, _)| region.code().to_string())
+                    .map(|(region, _)| region.code())
                     .collect();
 
                 let region_codes_str: Vec<&str> = region_codes.iter().map(AsRef::as_ref).collect();

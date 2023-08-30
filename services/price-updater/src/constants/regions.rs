@@ -1,4 +1,4 @@
-pub const AWS_REGIONS: [&'static str; 28] = [
+pub const AWS_REGIONS: [&str; 28] = [
     "us-east-1",
     "us-east-2",
     "us-west-1",
