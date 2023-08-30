@@ -276,7 +276,7 @@ pub async fn update_pricing_for_region(
                 for (_, price_dimensions) in term.price_dimensions {
                     let description = &price_dimensions.description.unwrap();
 
-                    if description != "" {
+                    if !description.is_empty() {
                         let captures = pattern.captures(description);
 
                         if let Some(captures) = captures {
