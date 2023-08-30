@@ -1,24 +1,17 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
+use std::{collections::HashMap, time::Duration};
+
 use sqlx::Error as SqlxError;
 use sqlx::PgPool;
-use std::time::Duration;
-use tokio::time::sleep;
 
-use crate::pricing::{MySpotPrice, Pricing};
-
-pub async fn connect() -> Result<PgPool> {
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-
-    Ok(PgPool::connect(&database_url).await?)
-}
+use crate::models::on_demand_pricing::OnDemandInstance;
+use crate::models::spot_pricing::SpotInstance;
 
 const MAX_RETRIES: usize = 5;
 
-pub async fn insert_on_demand_pricing_in_bulk(
+pub async fn on_demand_pricing_in_bulk(
     pool: &PgPool,
-    entries: Vec<Pricing>,
+    instances: Vec<OnDemandInstance>,
 ) -> Result<(), SqlxError> {
     let mut retries = 0;
 
@@ -26,7 +19,7 @@ pub async fn insert_on_demand_pricing_in_bulk(
         // Start a transaction
         let mut tx = pool.begin().await?;
 
-        let values: Vec<String> = entries
+        let values: Vec<String> = instances
             .iter()
             .map(|entry| {
                 format!(
@@ -67,16 +60,16 @@ pub async fn insert_on_demand_pricing_in_bulk(
                 }
 
                 // Wait for a bit before retrying
-                sleep(Duration::from_millis(200)).await;
+                tokio::time::sleep(Duration::from_millis(200)).await;
             }
         }
     }
 }
 
-pub async fn insert_spot_pricing_in_bulk(
+pub async fn spot_pricing_in_bulk(
     pool: &PgPool,
     region: String,
-    prices: HashMap<String, Vec<MySpotPrice>>,
+    instances: HashMap<String, Vec<SpotInstance>>,
 ) -> Result<()> {
     // Start a transaction
     let mut tx = pool.begin().await?;
@@ -89,7 +82,7 @@ pub async fn insert_spot_pricing_in_bulk(
     DO UPDATE SET price_per_hour = excluded.price_per_hour, updated_at = NOW()";
 
     // Iterate over the data and execute the queries
-    for (availability_zone, spot_prices) in prices.iter() {
+    for (availability_zone, spot_prices) in instances.iter() {
         for spot_price in spot_prices.iter() {
             sqlx::query(insert_query)
                 .bind(&region)

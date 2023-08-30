@@ -1,9 +1,11 @@
+pub mod api;
 pub mod constants;
 pub mod db;
 pub mod helper;
+pub mod models;
 pub mod pricing;
+pub mod types;
 
-use pricing::{update_on_demand_pricing_index, update_spot_pricing_index};
 use std::time::Duration;
 use tokio::{join, time::sleep};
 
@@ -20,7 +22,9 @@ async fn main() -> std::io::Result<()> {
         let interval = Duration::from_secs(6 * 60 * 60);
 
         loop {
-            if let Err(err) = update_on_demand_pricing_index(pool_for_on_demand.clone()).await {
+            if let Err(err) =
+                helper::update_on_demand_pricing_index(pool_for_on_demand.clone()).await
+            {
                 println!("Failed to update on-demand pricing: {:?}", err);
             }
             sleep(interval).await;
@@ -32,7 +36,7 @@ async fn main() -> std::io::Result<()> {
         let interval = Duration::from_secs(2 * 60);
 
         loop {
-            if let Err(err) = update_spot_pricing_index(pool_for_spot.clone()).await {
+            if let Err(err) = helper::update_spot_pricing_index(pool_for_spot.clone()).await {
                 println!("Failed to update spot pricing: {:?}", err);
             }
             sleep(interval).await;
