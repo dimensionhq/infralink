@@ -91,7 +91,7 @@ pub async fn insert_spot_pricing_in_bulk(
     // Iterate over the data and execute the queries
     for (availability_zone, spot_prices) in prices.iter() {
         for spot_price in spot_prices.iter() {
-            sqlx::query(&insert_query)
+            sqlx::query(insert_query)
                 .bind(&region)
                 .bind(availability_zone)
                 .bind(&spot_price.instance_type)

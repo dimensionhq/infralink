@@ -39,14 +39,14 @@ pub async fn spot(
         match result {
             Ok(data) => {
                 let json_data = serde_json::to_string(&data).unwrap_or_else(|_| "[]".to_string());
-                return HttpResponse::Ok().body(json_data);
+                HttpResponse::Ok().body(json_data)
             }
             Err(e) => {
                 eprintln!("Error fetching data: {:?}", e);
-                return HttpResponse::InternalServerError().body("Data fetching failed");
+                HttpResponse::InternalServerError().body("Data fetching failed")
             }
         }
     } else {
-        return HttpResponse::BadRequest().body("Invalid Request Body. Check your parameters.");
+        HttpResponse::BadRequest().body("Invalid Request Body. Check your parameters.")
     }
 }
