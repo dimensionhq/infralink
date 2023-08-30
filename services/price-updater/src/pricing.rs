@@ -1,3 +1,5 @@
+use crate::constants::regions::AWS_REGIONS;
+use crate::db;
 use aws_sdk_ec2::config::Region;
 use aws_sdk_ec2::primitives::DateTime;
 use aws_sdk_ec2::types::{InstanceType, SpotPrice};
@@ -5,13 +7,11 @@ use colored::Colorize;
 use futures_util::stream::StreamExt;
 use regex::Regex;
 use reqwest;
-use serde::{Deserialize, Serialize};
+use serde::de::Error;
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{json, Map, Value};
 use sqlx::PgPool;
 use std::collections::HashMap;
-
-use crate::constants::regions::AWS_REGIONS;
-use crate::db;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MySpotPrice {
@@ -19,6 +19,53 @@ pub struct MySpotPrice {
     pub spot_price: String,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct BulkPricingResponse {
+    pub products: Option<HashMap<String, Product>>,
+    pub terms: Option<Terms>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Terms {
+    #[serde(rename = "OnDemand")]
+    pub on_demand: HashMap<String, HashMap<String, OnDemandTerms>>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct OnDemandTerms {
+    pub price_dimensions: HashMap<String, PriceDimension>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PriceDimension {
+    pub description: Option<String>,
+    pub price_per_unit: PricePerUnit,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct PricePerUnit {
+    #[serde(rename = "USD")]
+    pub usd: Option<ForceF32>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Product {
+    pub sku: String,
+    pub attributes: Option<Attribute>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Attribute {
+    pub instance_type: Option<String>,
+    pub vcpu: Option<ForceF32>,
+    pub memory: Option<String>,
+    pub storage: Option<String>,
+}
+
+#[derive(Clone, Debug)]
 pub struct Pricing {
     pub region: String,
     pub instance_name: String,
@@ -26,6 +73,16 @@ pub struct Pricing {
     pub memory: f64,
     pub price_per_hour: f64,
     pub storage: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ForceF32(#[serde(deserialize_with = "str_to_f32")] f32);
+
+fn str_to_f32<'de, D>(deserializer: D) -> Result<f32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    <&str>::deserialize(deserializer).and_then(|s| s.parse().map_err(D::Error::custom))
 }
 
 pub async fn update_on_demand_pricing_index(
@@ -38,7 +95,7 @@ pub async fn update_on_demand_pricing_index(
     );
 
     regions_stream
-        .for_each_concurrent(5, |fut| async {
+        .for_each_concurrent(6, |fut| async {
             if let Err(err) = fut.await {
                 // Handle the error here, maybe log it
                 println!("Failed to update pricing for region: {:?}", err);
@@ -156,7 +213,7 @@ pub async fn update_pricing_for_region(
     // Send a GET request
     let response = client.get(&url).send().await?;
 
-    // Download the content with progress
+    // Download the content
     let mut content = Vec::new();
     let mut stream = response.bytes_stream();
 
@@ -166,33 +223,36 @@ pub async fn update_pricing_for_region(
     }
 
     // Parse the JSON content
-    let region_response: Value = serde_json::from_slice(&content)?;
+    let region_response: BulkPricingResponse = serde_json::from_slice(&content)?;
+
+    drop(content);
 
     // Create a map of the sku id -> instance name, vcpu count, and memory
     let mut sku_to_instance: Map<String, Value> = Map::new();
 
-    if let Some(products) = region_response["products"].as_object() {
+    if let Some(products) = region_response.products {
         for (_, details) in products {
-            if let Some(attributes) = details["attributes"].as_object() {
-                if let Some(instance_name) = attributes.get("instanceType") {
-                    let instance_name = instance_name.as_str().unwrap();
+            if let Some(attributes) = details.attributes {
+                if let Some(instance_name) = attributes.instance_type {
+                    let instance_name = instance_name.as_str();
 
-                    let vcpu_count: f32 = attributes["vcpu"]
-                        .as_str()
-                        .unwrap_or("")
-                        .parse()
-                        .unwrap_or(0.0);
+                    let vcpu_count: f32 = attributes.vcpu.unwrap().0;
 
-                    let memory: f32 = attributes["memory"]
-                        .as_str()
-                        .unwrap_or("")
+                    // for memory, parse the string and extract the number
+                    // 4 GiB -> 4
+
+                    // Check if memory isn't NA
+
+                    let memory = attributes
+                        .memory
+                        .unwrap()
                         .split_whitespace()
                         .next()
-                        .unwrap_or("0.0")
-                        .parse()
+                        .unwrap()
+                        .parse::<f32>()
                         .unwrap_or(0.0);
 
-                    let storage = attributes["storage"].as_str().unwrap();
+                    let storage = attributes.storage.unwrap();
 
                     sku_to_instance.insert(
                         instance_name.to_owned(),
@@ -210,33 +270,25 @@ pub async fn update_pricing_for_region(
 
     let pattern = Regex::new(r"(.*) per On Demand Linux ([A-Za-z0-9.]+) Instance Hour").unwrap();
 
-    if let Some(terms) = region_response["terms"]["OnDemand"].as_object() {
-        for (_, details) in terms {
-            for (_, term) in details.as_object().unwrap() {
-                for (_, price_dimensions) in term["priceDimensions"].as_object().unwrap() {
-                    let description = price_dimensions["description"].as_str().unwrap_or("");
+    if let Some(terms) = region_response.terms {
+        for (_, details) in terms.on_demand {
+            for (_, term) in details {
+                for (_, price_dimensions) in term.price_dimensions {
+                    let description = &price_dimensions.description.unwrap();
 
-                    if description != "" {
+                    if description != &"" {
                         let captures = pattern.captures(description);
 
                         if let Some(captures) = captures {
                             let instance_name = captures.get(2).unwrap().as_str();
 
                             if let Some(instance) = sku_to_instance.get_mut(instance_name) {
-                                // Get the price per hour as a string
-                                let price_per_hour_str = price_dimensions["pricePerUnit"]["USD"]
-                                    .as_str()
-                                    .unwrap_or("0.0");
-
-                                // Convert the price per hour to f64 and round to 5 decimal places
-                                if let Ok(price_per_hour) = price_per_hour_str.parse::<f64>() {
+                                if let Some(price_per_hour) = price_dimensions.price_per_unit.usd {
+                                    // Convert the price per hour to f64 and round to 5 decimal places
                                     instance["price_per_hour"] =
-                                        json!((price_per_hour * 100000.0).round() / 100000.0);
+                                        json!((price_per_hour.0 * 100000.0).round() / 100000.0);
                                 } else {
-                                    println!(
-                                        "Failed to parse price for instance: {}",
-                                        instance_name
-                                    );
+                                    instance["price_per_hour"] = json!(0.0);
                                 }
                             }
                         }
@@ -246,7 +298,7 @@ pub async fn update_pricing_for_region(
         }
     }
 
-    drop(region_response);
+    // drop(region_response);
 
     // Prepare a vector to collect all pricing entries
     let mut pricing_entries: Vec<Pricing> = Vec::new();
@@ -259,7 +311,7 @@ pub async fn update_pricing_for_region(
         let price_per_hour = instance_details["price_per_hour"].as_f64().unwrap_or(0.0);
         let storage = instance_details["storage"].as_str().unwrap_or("");
 
-        if price_per_hour != 0.0 {
+        if price_per_hour != 0.0 && memory != 0.0 {
             // Create an entry for the database
             let pricing_entry = Pricing {
                 region: region_code.to_string(),

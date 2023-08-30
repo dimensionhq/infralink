@@ -5,3 +5,4 @@ apis/pricing/regions
 apis/pricing/target
 target/
 *.DS_Store
+*fly.toml
