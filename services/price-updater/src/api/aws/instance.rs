@@ -1,6 +1,7 @@
 use crate::db;
 use crate::models::on_demand_pricing::{BulkPricingResponse, OnDemandInstance};
 use crate::models::spot_pricing::SpotInstance;
+use crate::models::storage::Storage;
 use aws_sdk_ec2::config::Region;
 use aws_sdk_ec2::primitives::DateTime;
 use aws_sdk_ec2::types::{InstanceType, SpotPrice};
@@ -113,18 +114,40 @@ pub async fn update_pricing_for_region(
 
     // Create a map of the sku id -> instance name, vcpu count, and memory
     let mut sku_to_instance: HashMap<String, OnDemandInstance> = HashMap::new();
+    // Create a map of the sku id -> storage
+    let mut sku_to_storage: HashMap<String, Storage> = HashMap::new();
 
     if let Some(products) = &region_response.products {
         for (_, details) in products.iter() {
-            if let Some(attributes) = &details.attributes {
-                if let Some(instance_name) = &attributes.instance_type {
+            if let Some(attribute) = &details.attributes {
+                if details.product_family == "Storage" {
+                    let sku = details.sku.as_str();
+
+                    sku_to_storage.insert(
+                        sku.to_owned(),
+                        Storage {
+                            volume_api_name: attribute.volume_api_name.as_ref().unwrap().clone(),
+                            storage_media: if attribute.storage_media.as_ref().unwrap()
+                                == "HDD-backed"
+                            {
+                                "HDD".to_string()
+                            } else {
+                                "SSD".to_string()
+                            },
+                            price_per_gb_month: 0.0,
+                            region: region_code.to_string(),
+                        },
+                    );
+                }
+
+                if let Some(instance_name) = &attribute.instance_type {
                     let instance_name = instance_name.as_str();
 
-                    let vcpu_count: f32 = attributes.vcpu.as_ref().unwrap().0;
+                    let vcpu_count: f32 = attribute.vcpu.as_ref().unwrap().0;
 
                     // for memory, parse the string and extract the number
                     // 4 GiB -> 4
-                    let memory = attributes
+                    let memory = attribute
                         .memory
                         .as_ref()
                         .unwrap()
@@ -134,9 +157,9 @@ pub async fn update_pricing_for_region(
                         .parse::<f32>()
                         .unwrap_or(0.0);
 
-                    let storage = attributes.storage.as_ref().unwrap();
+                    let storage = attribute.storage.as_ref().unwrap();
 
-                    let physical_processor = attributes.physical_processor.as_ref().unwrap();
+                    let physical_processor = attribute.physical_processor.as_ref().unwrap();
 
                     let arch = if physical_processor.starts_with("AWS Graviton")
                         || physical_processor.starts_with("Ampere")
@@ -169,23 +192,31 @@ pub async fn update_pricing_for_region(
         for details in terms.on_demand.values() {
             for term in details.values() {
                 for price_dimensions in term.price_dimensions.values() {
-                    let description = &price_dimensions.description.as_ref().unwrap();
+                    if sku_to_storage.contains_key(&term.sku) {
+                        sku_to_storage
+                            .get_mut(&term.sku)
+                            .unwrap()
+                            .price_per_gb_month =
+                            price_dimensions.price_per_unit.usd.as_ref().unwrap().0;
+                    } else {
+                        let description = &price_dimensions.description.as_ref().unwrap();
 
-                    if !description.is_empty() {
-                        let captures = pattern.captures(description);
+                        if !description.is_empty() {
+                            let captures = pattern.captures(description);
 
-                        if let Some(captures) = captures {
-                            let instance_name = captures.get(2).unwrap().as_str();
+                            if let Some(captures) = captures {
+                                let instance_name = captures.get(2).unwrap().as_str();
 
-                            if let Some(instance) = sku_to_instance.get_mut(instance_name) {
-                                if let Some(price_per_hour) =
-                                    price_dimensions.price_per_unit.usd.as_ref()
-                                {
-                                    // Convert the price per hour to f64 and round to 5 decimal places
-                                    instance.price_per_hour =
-                                        (price_per_hour.0 * 100000.0).round() / 100000.0;
-                                } else {
-                                    instance.price_per_hour = 0.0;
+                                if let Some(instance) = sku_to_instance.get_mut(instance_name) {
+                                    if let Some(price_per_hour) =
+                                        price_dimensions.price_per_unit.usd.as_ref()
+                                    {
+                                        // Convert the price per hour to f64 and round to 5 decimal places
+                                        instance.price_per_hour =
+                                            (price_per_hour.0 * 100000.0).round() / 100000.0;
+                                    } else {
+                                        instance.price_per_hour = 0.0;
+                                    }
                                 }
                             }
                         }
@@ -199,18 +230,25 @@ pub async fn update_pricing_for_region(
 
     // Prepare a vector to collect all pricing entries
     let instance_entries: Vec<OnDemandInstance> = sku_to_instance.values().cloned().collect();
+    let storage_entries: Vec<Storage> = sku_to_storage.values().cloned().collect();
 
     drop(sku_to_instance);
+    drop(sku_to_storage);
 
     let instance_entries_len = instance_entries.len();
+    let storage_entries_len = storage_entries.len();
 
-    // Insert all the entries in the database in a single query
+    // Insert on demand pricing
     db::insert::on_demand_pricing_in_bulk(&pool, instance_entries).await?;
 
+    // Insert storage pricing
+    db::insert::storage_pricing_in_bulk(&pool, storage_entries).await?;
+
     println!(
-        "Updated pricing for {} with {} instance types.",
+        "Updated pricing for {} with {} instance types and {} storage types.",
         region_code.bright_cyan(),
-        instance_entries_len.to_string().bright_green()
+        instance_entries_len.to_string().bright_green(),
+        storage_entries_len.to_string().bright_green()
     );
 
     Ok(())

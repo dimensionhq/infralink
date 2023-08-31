@@ -11,7 +11,9 @@ pub struct BulkPricingResponse {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct Product {
+    pub product_family: String,
     pub sku: String,
     pub attributes: Option<Attribute>,
 }
@@ -24,6 +26,8 @@ pub struct Attribute {
     pub memory: Option<String>,
     pub storage: Option<String>,
     pub physical_processor: Option<String>,
+    pub storage_media: Option<String>,
+    pub volume_api_name: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -35,6 +39,7 @@ pub struct Terms {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct OnDemandTerms {
+    pub sku: String,
     pub price_dimensions: HashMap<String, PriceDimension>,
 }
 

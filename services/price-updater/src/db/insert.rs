@@ -7,6 +7,7 @@ use sqlx::PgPool;
 use crate::models::network::InterRegionPrice;
 use crate::models::on_demand_pricing::OnDemandInstance;
 use crate::models::spot_pricing::SpotInstance;
+use crate::models::storage::Storage;
 
 const MAX_RETRIES: usize = 5;
 
@@ -138,6 +139,47 @@ pub async fn inter_region_data_transfer_in_bulk(
         ON CONFLICT (from_region_code, to_region_code)
         DO UPDATE SET updated_at = NOW()
     ", values_str);
+
+    sqlx::query(&insert_query).execute(&mut *tx).await?;
+
+    tx.commit().await?;
+
+    Ok(())
+}
+
+pub async fn storage_pricing_in_bulk(
+    pool: &PgPool,
+    storage_prices: Vec<Storage>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut tx = pool.begin().await?;
+
+    let mut values_str = String::new();
+
+    for storage in storage_prices.iter() {
+        let region = &storage.region;
+        let storage_media = &storage.storage_media;
+        let volume_api_name = &storage.volume_api_name;
+        let price = storage.price_per_gb_month;
+
+        values_str.push_str(&format!(
+            "('{}', '{}', '{}', {}, NOW()),",
+            region, volume_api_name, storage_media, price
+        ));
+    }
+
+    // Remove the trailing comma
+    if !values_str.is_empty() {
+        values_str.pop();
+    }
+
+    let insert_query = format!(
+        "
+        INSERT INTO storage (region, volume_api_name, storage_media, price_per_gb_month, updated_at)
+        VALUES {}
+        ON CONFLICT (region, volume_api_name)
+        DO UPDATE SET price_per_gb_month = EXCLUDED.price_per_gb_month, updated_at = NOW()",
+        values_str
+    );
 
     sqlx::query(&insert_query).execute(&mut *tx).await?;
 
