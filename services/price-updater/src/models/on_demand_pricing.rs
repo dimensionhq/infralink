@@ -23,6 +23,7 @@ pub struct Attribute {
     pub vcpu: Option<ForceF32>,
     pub memory: Option<String>,
     pub storage: Option<String>,
+    pub physical_processor: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -54,8 +55,9 @@ pub struct PricePerUnit {
 pub struct OnDemandInstance {
     pub region: String,
     pub instance_name: String,
-    pub vcpu_count: f64,
-    pub memory: f64,
-    pub price_per_hour: f64,
+    pub vcpu_count: f32,
+    pub memory: f32,
+    pub arch: String,
+    pub price_per_hour: f32,
     pub storage: String,
 }

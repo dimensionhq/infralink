@@ -8,7 +8,6 @@ use colored::Colorize;
 use futures_util::stream::StreamExt;
 use regex::Regex;
 use reqwest;
-use serde_json::{json, Map, Value};
 use sqlx::PgPool;
 use std::collections::HashMap;
 
@@ -113,21 +112,21 @@ pub async fn update_pricing_for_region(
     drop(content);
 
     // Create a map of the sku id -> instance name, vcpu count, and memory
-    let mut sku_to_instance: Map<String, Value> = Map::new();
+    let mut sku_to_instance: HashMap<String, OnDemandInstance> = HashMap::new();
 
-    if let Some(products) = region_response.products {
-        for (_, details) in products {
-            if let Some(attributes) = details.attributes {
-                if let Some(instance_name) = attributes.instance_type {
+    if let Some(products) = &region_response.products {
+        for (_, details) in products.iter() {
+            if let Some(attributes) = &details.attributes {
+                if let Some(instance_name) = &attributes.instance_type {
                     let instance_name = instance_name.as_str();
 
-                    let vcpu_count: f32 = attributes.vcpu.unwrap().0;
+                    let vcpu_count: f32 = attributes.vcpu.as_ref().unwrap().0;
 
                     // for memory, parse the string and extract the number
                     // 4 GiB -> 4
-
                     let memory = attributes
                         .memory
+                        .as_ref()
                         .unwrap()
                         .split_whitespace()
                         .next()
@@ -135,16 +134,31 @@ pub async fn update_pricing_for_region(
                         .parse::<f32>()
                         .unwrap_or(0.0);
 
-                    let storage = attributes.storage.unwrap();
+                    let storage = attributes.storage.as_ref().unwrap();
+
+                    let physical_processor = attributes.physical_processor.as_ref().unwrap();
+
+                    let arch: String;
+
+                    if physical_processor.starts_with("AWS Graviton")
+                        || physical_processor.starts_with("Ampere")
+                    {
+                        arch = "arm64".to_string();
+                    } else {
+                        arch = "x86_64".to_string();
+                    }
 
                     sku_to_instance.insert(
                         instance_name.to_owned(),
-                        json!({
-                            "instance_name": instance_name,
-                            "vcpu_count": vcpu_count,
-                            "memory": memory,
-                            "storage": storage
-                        }),
+                        OnDemandInstance {
+                            region: region_code.to_string(),
+                            instance_name: instance_name.to_string(),
+                            vcpu_count,
+                            memory,
+                            price_per_hour: 0.0,
+                            arch,
+                            storage: storage.to_owned(),
+                        },
                     );
                 }
             }
@@ -153,11 +167,11 @@ pub async fn update_pricing_for_region(
 
     let pattern = Regex::new(r"(.*) per On Demand Linux ([A-Za-z0-9.]+) Instance Hour").unwrap();
 
-    if let Some(terms) = region_response.terms {
-        for (_, details) in terms.on_demand {
+    if let Some(terms) = &region_response.terms {
+        for (_, details) in &terms.on_demand {
             for (_, term) in details {
-                for (_, price_dimensions) in term.price_dimensions {
-                    let description = &price_dimensions.description.unwrap();
+                for (_, price_dimensions) in &term.price_dimensions {
+                    let description = &price_dimensions.description.as_ref().unwrap();
 
                     if !description.is_empty() {
                         let captures = pattern.captures(description);
@@ -166,12 +180,14 @@ pub async fn update_pricing_for_region(
                             let instance_name = captures.get(2).unwrap().as_str();
 
                             if let Some(instance) = sku_to_instance.get_mut(instance_name) {
-                                if let Some(price_per_hour) = price_dimensions.price_per_unit.usd {
+                                if let Some(price_per_hour) =
+                                    price_dimensions.price_per_unit.usd.as_ref()
+                                {
                                     // Convert the price per hour to f64 and round to 5 decimal places
-                                    instance["price_per_hour"] =
-                                        json!((price_per_hour.0 * 100000.0).round() / 100000.0);
+                                    instance.price_per_hour =
+                                        (price_per_hour.0 * 100000.0).round() / 100000.0;
                                 } else {
-                                    instance["price_per_hour"] = json!(0.0);
+                                    instance.price_per_hour = 0.0;
                                 }
                             }
                         }
@@ -181,34 +197,10 @@ pub async fn update_pricing_for_region(
         }
     }
 
-    // drop(region_response);
+    drop(region_response);
 
     // Prepare a vector to collect all pricing entries
-    let mut instance_entries: Vec<OnDemandInstance> = Vec::new();
-
-    // Process the SKU to instance mapping
-    for (instance_name, instance_details) in sku_to_instance.iter() {
-        // Get the necessary details
-        let vcpu_count = instance_details["vcpu_count"].as_f64().unwrap_or(0.0);
-        let memory = instance_details["memory"].as_f64().unwrap_or(0.0);
-        let price_per_hour = instance_details["price_per_hour"].as_f64().unwrap_or(0.0);
-        let storage = instance_details["storage"].as_str().unwrap_or("");
-
-        if price_per_hour != 0.0 && memory != 0.0 {
-            // Create an entry for the database
-            let instance_entry = OnDemandInstance {
-                region: region_code.to_string(),
-                instance_name: instance_name.to_string(),
-                vcpu_count,
-                memory,
-                price_per_hour,
-                storage: storage.to_string(),
-            };
-
-            // Add the entry to the collection
-            instance_entries.push(instance_entry);
-        }
-    }
+    let instance_entries: Vec<OnDemandInstance> = sku_to_instance.values().cloned().collect();
 
     drop(sku_to_instance);
 

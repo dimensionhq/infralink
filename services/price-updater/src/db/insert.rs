@@ -24,22 +24,23 @@ pub async fn on_demand_pricing_in_bulk(
             .iter()
             .map(|entry| {
                 format!(
-                    "('{}', '{}', {}, {}, {}, '{}', NOW())",
+                    "('{}', '{}', {}, {}, {}, '{}', '{}', NOW())",
                     entry.region,
                     entry.instance_name,
                     entry.vcpu_count,
                     entry.memory,
                     entry.price_per_hour,
+                    entry.arch,
                     entry.storage
                 )
             })
             .collect();
 
         let insert_query = format!(
-            "INSERT INTO on_demand (region, instance_type, vcpu_count, memory, price_per_hour, storage, updated_at)
+            "INSERT INTO on_demand (region, instance_type, vcpu_count, memory, price_per_hour, architecture, storage, updated_at)
             VALUES {}
             ON CONFLICT (region, instance_type)
-            DO UPDATE SET vcpu_count = excluded.vcpu_count, memory = excluded.memory, price_per_hour = excluded.price_per_hour, storage = excluded.storage, updated_at = NOW()",
+            DO UPDATE SET vcpu_count = excluded.vcpu_count, memory = excluded.memory, price_per_hour = excluded.price_per_hour, architecture = excluded.architecture, storage = excluded.storage, updated_at = NOW()",
             values.join(", ")
         );
 
