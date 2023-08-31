@@ -5,7 +5,7 @@ use futures_util::StreamExt;
 use sqlx::PgPool;
 
 use crate::db;
-use crate::models::network::{DataTransferResponse, InterRegionPrice};
+use crate::models::network::{DataTransferResponse, ExternalPrice, ExternalTier, InterRegionPrice};
 
 pub async fn update_inter_region_networking_pricing(
     pool: PgPool,
@@ -31,10 +31,8 @@ pub async fn update_inter_region_networking_pricing(
     // Parse the JSON content
     let network_response: DataTransferResponse = serde_json::from_slice(&content)?;
 
-    let mut transfer_prices: HashMap<String, InterRegionPrice> = HashMap::new();
-
-    // primary region regex (so we don't capture wavelength regions)
-    let primary_region_regex = regex::Regex::new(r"^[a-z]{2}-[a-z]+-[0-9]+$").unwrap();
+    let mut inter_region_transfer_prices: HashMap<String, InterRegionPrice> = HashMap::new();
+    let mut external_transfer_prices: HashMap<String, ExternalPrice> = HashMap::new();
 
     for (sku, product) in network_response.products {
         if let Some(attributes) = product.attributes {
@@ -43,15 +41,27 @@ pub async fn update_inter_region_networking_pricing(
                     let from_region_code = attributes.from_region_code.unwrap();
                     let to_region_code = attributes.to_region_code.unwrap();
 
-                    if primary_region_regex.is_match(&from_region_code)
-                        && primary_region_regex.is_match(&to_region_code)
+                    if attributes.from_location_type == Some("AWS Region".to_string())
+                        && attributes.to_location_type == Some("AWS Region".to_string())
                     {
-                        transfer_prices.insert(
+                        inter_region_transfer_prices.insert(
                             sku,
                             InterRegionPrice {
                                 price_per_gb: 0.0,
                                 from_region_code,
                                 to_region_code,
+                            },
+                        );
+                    }
+                } else if transfer_type == "AWS Outbound" {
+                    if attributes.from_location_type == Some("AWS Region".to_string())
+                        && attributes.to_location == Some("External".to_string())
+                    {
+                        external_transfer_prices.insert(
+                            sku,
+                            ExternalPrice {
+                                from_region_code: attributes.from_region_code.unwrap(),
+                                tiers: vec![],
                             },
                         );
                     }
@@ -62,15 +72,40 @@ pub async fn update_inter_region_networking_pricing(
 
     for (sku, term_map) in network_response.terms.on_demand {
         for (_, term) in term_map {
-            if transfer_prices.contains_key(&sku) {
+            if inter_region_transfer_prices.contains_key(&sku) {
                 for (_, dimension) in term.price_dimensions {
                     if let Some(price) = dimension.price_per_unit.usd {
                         let rounded_price = (price.0 * 1000.0).round() / 1000.0;
 
-                        if let Some(instance) = transfer_prices.get_mut(&sku) {
-                            instance.price_per_gb = rounded_price;
+                        if let Some(inter_region_price) = inter_region_transfer_prices.get_mut(&sku)
+                        {
+                            inter_region_price.price_per_gb = rounded_price;
                         }
                     }
+                }
+            } else if external_transfer_prices.contains_key(&sku) {
+                for (_, dimension) in term.price_dimensions {
+                    if let Some(price) = dimension.price_per_unit.usd {
+                        let rounded_price = (price.0 * 1000.0).round() / 1000.0;
+
+                        if let Some(external_transfer_price) =
+                            external_transfer_prices.get_mut(&sku)
+                        {
+                            external_transfer_price.tiers.push(ExternalTier {
+                                price_per_gb: rounded_price,
+                                start_range: dimension.begin_range.unwrap().0,
+                                end_range: dimension.end_range.unwrap().0,
+                            });
+                        }
+                    }
+                }
+
+                if let Some(external_transfer_price) = external_transfer_prices.get_mut(&sku) {
+                    external_transfer_price.tiers.sort_by(|a, b| {
+                        a.start_range
+                            .cmp(&b.start_range)
+                            .then_with(|| a.end_range.cmp(&b.end_range))
+                    });
                 }
             }
         }
@@ -78,13 +113,20 @@ pub async fn update_inter_region_networking_pricing(
 
     drop(content);
 
-    let transfer_prices_len = transfer_prices.len();
+    let inter_region_transfer_prices_len = inter_region_transfer_prices.len();
+    let external_transfer_prices_len = external_transfer_prices.len();
 
-    db::insert::inter_region_data_transfer_in_bulk(&pool, transfer_prices).await?;
+    db::insert::inter_region_data_transfer_in_bulk(&pool, inter_region_transfer_prices).await?;
+    db::insert::external_data_transfer_in_bulk(&pool, external_transfer_prices).await?;
 
     println!(
         "Updated inter-region pricing for {} routes.",
-        transfer_prices_len.to_string().bright_green()
+        inter_region_transfer_prices_len.to_string().bright_green()
+    );
+
+    println!(
+        "Updated external pricing for {} routes.",
+        external_transfer_prices_len.to_string().bright_green()
     );
 
     Ok(())

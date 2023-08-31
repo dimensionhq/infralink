@@ -4,6 +4,7 @@ use std::{collections::HashMap, time::Duration};
 use sqlx::Error as SqlxError;
 use sqlx::PgPool;
 
+use crate::models::network::ExternalPrice;
 use crate::models::network::InterRegionPrice;
 use crate::models::on_demand_pricing::OnDemandInstance;
 use crate::models::spot_pricing::SpotInstance;
@@ -178,6 +179,44 @@ pub async fn storage_pricing_in_bulk(
         VALUES {}
         ON CONFLICT (region, volume_api_name)
         DO UPDATE SET price_per_gb_month = EXCLUDED.price_per_gb_month, updated_at = NOW()",
+        values_str
+    );
+
+    sqlx::query(&insert_query).execute(&mut *tx).await?;
+
+    tx.commit().await?;
+
+    Ok(())
+}
+
+pub async fn external_data_transfer_in_bulk(
+    pool: &PgPool,
+    external_prices: HashMap<String, ExternalPrice>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut tx = pool.begin().await?;
+
+    let mut values_str = String::new();
+
+    for external_price in external_prices.values() {
+        let from_region_code = &external_price.from_region_code;
+        for tier in &external_price.tiers {
+            values_str.push_str(&format!(
+                "('{}', {}, {}, {}, NOW()),",
+                from_region_code, tier.start_range, tier.end_range, tier.price_per_gb
+            ));
+        }
+    }
+
+    // Remove the trailing comma
+    values_str.pop();
+
+    let insert_query = format!(
+        "
+        INSERT INTO external_data_transfer (from_region_code, start_range, end_range, price_per_gb, updated_at)
+        VALUES {}
+        ON CONFLICT (from_region_code, start_range, end_range)
+        DO UPDATE SET updated_at = NOW(), price_per_gb = EXCLUDED.price_per_gb
+    ",
         values_str
     );
 

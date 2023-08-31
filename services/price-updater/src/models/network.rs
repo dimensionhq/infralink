@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::types::force_u32::ForceU32;
+
 use super::on_demand_pricing::PricePerUnit;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -21,6 +23,9 @@ pub struct Product {
 #[serde(rename_all = "camelCase")]
 pub struct ProductAttributes {
     pub transfer_type: Option<String>,
+    pub from_location_type: Option<String>,
+    pub to_location_type: Option<String>,
+    pub to_location: Option<String>,
     pub from_region_code: Option<String>,
     pub to_region_code: Option<String>,
 }
@@ -43,11 +48,26 @@ pub struct PriceDimension {
     pub rate_code: String,
     pub description: String,
     pub price_per_unit: PricePerUnit,
+    pub begin_range: Option<ForceU32>,
+    pub end_range: Option<ForceU32>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct InterRegionPrice {
     pub from_region_code: String,
     pub to_region_code: String,
+    pub price_per_gb: f32,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ExternalPrice {
+    pub from_region_code: String,
+    pub tiers: Vec<ExternalTier>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ExternalTier {
+    pub start_range: u32,
+    pub end_range: u32,
     pub price_per_gb: f32,
 }
