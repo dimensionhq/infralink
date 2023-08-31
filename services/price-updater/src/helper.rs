@@ -2,7 +2,10 @@ use futures_util::StreamExt;
 use sqlx::PgPool;
 
 use crate::{
-    api::aws::instance::{update_pricing_for_region, update_spot_pricing_for_region},
+    api::aws::{
+        instance::{update_pricing_for_region, update_spot_pricing_for_region},
+        network::update_inter_region_networking_pricing,
+    },
     constants::regions::AWS_REGIONS,
 };
 
@@ -43,6 +46,13 @@ pub async fn update_spot_pricing_index(pool: PgPool) -> Result<(), Box<dyn std::
             }
         })
         .await;
+
+    Ok(())
+}
+
+// Function to update the network pricing index for all regions
+pub async fn update_network_pricing_index(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
+    update_inter_region_networking_pricing(pool).await?;
 
     Ok(())
 }

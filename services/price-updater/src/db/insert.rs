@@ -4,6 +4,7 @@ use std::{collections::HashMap, time::Duration};
 use sqlx::Error as SqlxError;
 use sqlx::PgPool;
 
+use crate::models::network::InterRegionPrice;
 use crate::models::on_demand_pricing::OnDemandInstance;
 use crate::models::spot_pricing::SpotInstance;
 
@@ -70,31 +71,75 @@ pub async fn spot_pricing_in_bulk(
     pool: &PgPool,
     region: String,
     instances: HashMap<String, Vec<SpotInstance>>,
-) -> Result<()> {
+) -> Result<(), Box<dyn std::error::Error>> {
     // Start a transaction
     let mut tx = pool.begin().await?;
 
-    // Prepare an INSERT statement with ON CONFLICT clause
-    let insert_query = "
-    INSERT INTO spot (region, availability_zone, instance_type, price_per_hour, updated_at)
-    VALUES ($1, $2, $3, $4, NOW())
-    ON CONFLICT (region, availability_zone, instance_type)
-    DO UPDATE SET price_per_hour = excluded.price_per_hour, updated_at = NOW()";
+    // Initialize the values string
+    let mut values_str = String::new();
 
-    // Iterate over the data and execute the queries
+    // Iterate over the data to construct the multi-row VALUES part of the SQL statement
     for (availability_zone, spot_prices) in instances.iter() {
         for spot_price in spot_prices.iter() {
-            sqlx::query(insert_query)
-                .bind(&region)
-                .bind(availability_zone)
-                .bind(&spot_price.instance_type)
-                .bind(&spot_price.spot_price)
-                .execute(&mut *tx)
-                .await?;
+            values_str.push_str(&format!(
+                "('{}', '{}', '{}', {}, NOW()),",
+                region, availability_zone, spot_price.instance_type, spot_price.spot_price
+            ));
         }
     }
 
+    // Remove the trailing comma
+    values_str.pop();
+
+    // Create the entire SQL query
+    let insert_query = format!(
+        "INSERT INTO spot (region, availability_zone, instance_type, price_per_hour, updated_at)
+        VALUES {}
+        ON CONFLICT (region, availability_zone, instance_type)
+        DO UPDATE SET price_per_hour = excluded.price_per_hour, updated_at = NOW()",
+        values_str
+    );
+
+    // Execute the query
+    sqlx::query(&insert_query).execute(&mut *tx).await?;
+
     // Commit the transaction
+    tx.commit().await?;
+
+    Ok(())
+}
+
+pub async fn inter_region_data_transfer_in_bulk(
+    pool: &PgPool,
+    transfer_prices: HashMap<String, InterRegionPrice>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut tx = pool.begin().await?;
+
+    let mut values_str = String::new();
+
+    for transfer_price in transfer_prices.values() {
+        let from_region = &transfer_price.from_region_code;
+        let to_region = &transfer_price.to_region_code;
+        let price = transfer_price.price_per_gb;
+
+        values_str.push_str(&format!(
+            "('{}', '{}', {}, NOW()),",
+            from_region, to_region, price
+        ));
+    }
+
+    // Remove the trailing comma
+    values_str.pop();
+
+    let insert_query = format!("
+        INSERT INTO inter_region_data_transfer (from_region_code, to_region_code, price_per_gb, updated_at)
+        VALUES {}
+        ON CONFLICT (from_region_code, to_region_code)
+        DO UPDATE SET updated_at = NOW()
+    ", values_str);
+
+    sqlx::query(&insert_query).execute(&mut *tx).await?;
+
     tx.commit().await?;
 
     Ok(())

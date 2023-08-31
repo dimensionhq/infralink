@@ -42,8 +42,24 @@ async fn main() -> std::io::Result<()> {
         }
     });
 
+    // Task for updating network pricing every 12 hours
+    let network_pricing_task = tokio::spawn(async move {
+        let interval = Duration::from_secs(12 * 60 * 60);
+
+        loop {
+            if let Err(err) = helper::update_network_pricing_index(pool.clone()).await {
+                println!("Failed to update network pricing: {:?}", err);
+            }
+            sleep(interval).await;
+        }
+    });
+
     // Join all tasks to ensure they continue running
-    let _ = join!(on_demand_pricing_task, spot_pricing_task);
+    let _ = join!(
+        on_demand_pricing_task,
+        spot_pricing_task,
+        network_pricing_task
+    );
 
     Ok(())
 }
