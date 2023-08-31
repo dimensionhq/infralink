@@ -21,7 +21,7 @@ jobs:
       - name: Cargo Format
         run: cargo fmt --all
       - name: Cargo Clippy
-        run: cargo clippy --fix
+        run: cargo clippy --fix --allow-staged --allow-dirty
         
       - name: Commit & Push changes
         run: |
