@@ -53,18 +53,14 @@ pub async fn update_inter_region_networking_pricing(
                             },
                         );
                     }
-                } else if transfer_type == "AWS Outbound" {
-                    if attributes.from_location_type == Some("AWS Region".to_string())
-                        && attributes.to_location == Some("External".to_string())
-                    {
-                        external_transfer_prices.insert(
-                            sku,
-                            ExternalPrice {
-                                from_region_code: attributes.from_region_code.unwrap(),
-                                tiers: vec![],
-                            },
-                        );
-                    }
+                } else if transfer_type == "AWS Outbound" && attributes.from_location_type == Some("AWS Region".to_string()) && attributes.to_location == Some("External".to_string()) {
+                    external_transfer_prices.insert(
+                        sku,
+                        ExternalPrice {
+                            from_region_code: attributes.from_region_code.unwrap(),
+                            tiers: vec![],
+                        },
+                    );
                 }
             }
         }
