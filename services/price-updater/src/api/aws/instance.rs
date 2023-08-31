@@ -138,15 +138,13 @@ pub async fn update_pricing_for_region(
 
                     let physical_processor = attributes.physical_processor.as_ref().unwrap();
 
-                    let arch: String;
-
-                    if physical_processor.starts_with("AWS Graviton")
+                    let arch = if physical_processor.starts_with("AWS Graviton")
                         || physical_processor.starts_with("Ampere")
                     {
-                        arch = "arm64".to_string();
+                        "arm64".to_string()
                     } else {
-                        arch = "x86_64".to_string();
-                    }
+                        "x86_64".to_string()
+                    };
 
                     sku_to_instance.insert(
                         instance_name.to_owned(),
@@ -168,9 +166,9 @@ pub async fn update_pricing_for_region(
     let pattern = Regex::new(r"(.*) per On Demand Linux ([A-Za-z0-9.]+) Instance Hour").unwrap();
 
     if let Some(terms) = &region_response.terms {
-        for (_, details) in &terms.on_demand {
-            for (_, term) in details {
-                for (_, price_dimensions) in &term.price_dimensions {
+        for details in terms.on_demand.values() {
+            for term in details.values() {
+                for price_dimensions in term.price_dimensions.values() {
                     let description = &price_dimensions.description.as_ref().unwrap();
 
                     if !description.is_empty() {
