@@ -1,9 +1,3 @@
-#[cfg(unix)]
-use std::os::unix::fs::PermissionsExt;
-
-#[cfg(windows)]
-use std::os::windows::prelude::*;
-
 use keyring::Entry;
 use serde::{Deserialize, Serialize};
 
@@ -161,7 +155,10 @@ impl InternalAWSConfiguration {
         std::io::Write::write_all(&mut std::io::BufWriter::new(file), configuration.as_bytes())
             .unwrap();
 
-        if cfg!(unix) {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
             // Set permissions to 600 (read/write for owner, no access for others) on Unix-like systems
             let mut permissions = std::fs::metadata(&file_path).unwrap().permissions();
             permissions.set_mode(0o600);
