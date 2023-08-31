@@ -11,9 +11,7 @@ pub async fn update_inter_region_networking_pricing(
     pool: PgPool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Construct the URL for the specific region
-    let url = format!(
-        "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSDataTransfer/current/index.json",
-    );
+    let url = "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSDataTransfer/current/index.json".to_string();
 
     // Create a client
     let client = reqwest::Client::new();
