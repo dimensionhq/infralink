@@ -1,3 +1,7 @@
+use crate::models::external_data_transfer_request::ExternalDataTransferRequest;
+use crate::models::external_data_transfer_response::ExternalDataTransferResponse;
+use crate::models::inter_region_data_transfer_request::InterRegionDataTransferRequest;
+use crate::models::inter_region_data_transfer_response::InterRegionDataTransferResponse;
 use crate::models::on_demand_response::OnDemandResponse;
 use crate::models::spot_response::SpotResponse;
 use crate::models::{on_demand_request::OnDemandRequest, spot_request::SpotRequest};
@@ -18,11 +22,11 @@ pub async fn fetch_on_demand_data(
     let regions = req.regions.clone();
     let instance_types = req.instance_types.clone();
 
-    let mut query = QueryBuilder::new("SELECT * FROM on_demand WHERE ");
+    let mut query = QueryBuilder::new("SELECT * FROM on_demand WHERE 1=1");
 
     // Handle regions
     if let Some(ref regions) = regions {
-        query.push("region IN (");
+        query.push(" AND region IN (");
         let mut separated = query.separated(", ");
         for region in regions.iter() {
             separated.push_bind(region);
@@ -83,11 +87,11 @@ pub async fn fetch_spot_data(
     let availability_zones = req.availability_zones.clone();
     let instance_types = req.instance_types.clone();
 
-    let mut query = QueryBuilder::new("SELECT * FROM spot WHERE ");
+    let mut query = QueryBuilder::new("SELECT * FROM spot WHERE 1=1");
 
     // Handle regions
     if let Some(ref regions) = regions {
-        query.push("region IN (");
+        query.push("AND region IN (");
         let mut separated = query.separated(", ");
         for region in regions.iter() {
             separated.push_bind(region);
@@ -136,4 +140,78 @@ pub async fn fetch_spot_data(
     let result = query.build_query_as().fetch_all(&***pool).await.unwrap();
 
     Ok(result)
+}
+
+pub async fn fetch_external_data_transfer(
+    pool: &web::Data<Pool<Postgres>>,
+    data_transfer_request: ExternalDataTransferRequest,
+) -> Result<Vec<ExternalDataTransferResponse>> {
+    let mut query = QueryBuilder::new("SELECT * FROM external_data_transfer WHERE 1=1");
+
+    // Handle from_region_code
+    if let Some(ref from_region_code) = data_transfer_request.from_region_code {
+        query.push(" AND from_region_code = ");
+        query.push_bind(from_region_code);
+    }
+
+    // Handle start_range if it exists
+    if let Some(start_range) = data_transfer_request.start_range {
+        query.push(" AND start_range <= ");
+        query.push_bind(start_range);
+    }
+
+    // Handle sort_by
+    if let Some(ref sort_by) = data_transfer_request.sort_by {
+        query.push(" ORDER BY ");
+        query.push_bind(sort_by);
+    }
+
+    // Handle sort_order
+    if let Some(ref sort_order) = data_transfer_request.sort_order {
+        query.push(" ");
+        query.push_bind(sort_order);
+    }
+
+    // Execute the query
+    let rows: Vec<ExternalDataTransferResponse> =
+        query.build_query_as().fetch_all(&***pool).await?;
+
+    Ok(rows)
+}
+
+pub async fn fetch_inter_region_data_transfer(
+    pool: &web::Data<Pool<Postgres>>,
+    data_transfer_request: InterRegionDataTransferRequest,
+) -> Result<Vec<InterRegionDataTransferResponse>, anyhow::Error> {
+    let mut query = QueryBuilder::new("SELECT * FROM inter_region_data_transfer WHERE 1=1");
+
+    // Handle from_region_code
+    if data_transfer_request.from_region_code.as_ref().is_some() {
+        query.push(" AND from_region_code = ");
+        query.push_bind(&data_transfer_request.from_region_code);
+    }
+
+    // Handle to_region_code
+    if data_transfer_request.to_region_code.as_ref().is_some() {
+        query.push(" AND to_region_code = ");
+        query.push_bind(&data_transfer_request.to_region_code);
+    }
+
+    // Handle sort_by
+    if data_transfer_request.sort_by.as_ref().is_some() {
+        query.push(" ORDER BY ");
+        query.push_bind(&data_transfer_request.sort_by);
+    }
+
+    // Handle sort_order
+    if data_transfer_request.sort_order.as_ref().is_some() {
+        query.push(" ");
+        query.push_bind(&data_transfer_request.sort_order);
+    }
+
+    // Execute the query
+    let rows: Vec<InterRegionDataTransferResponse> =
+        query.build_query_as().fetch_all(&***pool).await?;
+
+    Ok(rows)
 }

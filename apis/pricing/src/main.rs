@@ -4,7 +4,7 @@ pub mod routes;
 pub mod validator;
 
 use actix_web::{web::Data, App, HttpServer};
-use routes::{on_demand, spot};
+use routes::{external_data_transfer, inter_region_data_transfer, on_demand, spot, spot_forecast};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -24,6 +24,9 @@ async fn main() -> std::io::Result<()> {
             .app_data(Data::new(pool.clone()))
             .service(on_demand)
             .service(spot)
+            .service(spot_forecast)
+            .service(external_data_transfer)
+            .service(inter_region_data_transfer)
     })
     .bind("0.0.0.0:8080")?
     .run()

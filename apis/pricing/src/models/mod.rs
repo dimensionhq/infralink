@@ -1,3 +1,9 @@
+pub mod block_storage_request;
+pub mod block_storage_response;
+pub mod external_data_transfer_request;
+pub mod external_data_transfer_response;
+pub mod inter_region_data_transfer_request;
+pub mod inter_region_data_transfer_response;
 pub mod on_demand_request;
 pub mod on_demand_response;
 pub mod spot_request;
