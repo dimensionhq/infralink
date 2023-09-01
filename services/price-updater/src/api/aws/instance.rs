@@ -20,7 +20,12 @@ fn convert_to_spot_instance(spot_price: &SpotPrice) -> SpotInstance {
             .unwrap()
             .as_str()
             .to_string(),
-        spot_price: spot_price.spot_price.as_ref().unwrap().clone(),
+        spot_price: spot_price
+            .spot_price
+            .as_ref()
+            .unwrap()
+            .parse::<f64>()
+            .unwrap_or(0.0),
     }
 }
 
@@ -75,7 +80,15 @@ pub async fn update_spot_pricing_for_region(
             .push(instance_price);
     }
 
-    crate::db::insert::spot_pricing_in_bulk(&pool, region_code_string, latest_prices).await?;
+    crate::db::insert::spot_pricing_in_bulk(
+        &pool,
+        region_code_string.clone(),
+        latest_prices.clone(),
+    )
+    .await?;
+
+    crate::db::insert::spot_pricing_for_forecast(&pool, region_code_string, latest_prices.clone())
+        .await?;
 
     println!("Updated spot pricing for {}.", region_code.bright_cyan());
 
