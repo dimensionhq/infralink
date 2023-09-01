@@ -3,21 +3,22 @@ use std::collections::HashMap;
 use crate::{api::pricing, models::region::AwsRegion};
 
 pub async fn calculate_cheapest_deployment(regions: Vec<AwsRegion>) -> HashMap<AwsRegion, f64> {
-    let control_plane_cost = pricing::api::get_cheapest_spot_instances(Some(regions.clone()))
+    let control_plane_options = pricing::api::get_cheapest_spot_instances(Some(regions.clone()))
         .await
         .unwrap();
 
-    let node_cost =
+    let node_options =
         pricing::api::get_cheapest_on_demand_instances(Some(regions), Some(1.0), Some(1.0))
             .await
             .unwrap();
 
     // calculate the cost of EBS depending on the region
-
     let mut cheapest_deployment: HashMap<AwsRegion, f64> = HashMap::new();
 
-    for (region, control_plane_instance) in control_plane_cost {
-        let node_instance = node_cost.get(&region).unwrap();
+    println!("Node Options: {:?}", node_options);
+
+    for (region, control_plane_instance) in control_plane_options {
+        let node_instance = node_options.get(&region).unwrap();
 
         let total_cost = control_plane_instance.price_per_hour + node_instance.price_per_hour;
 
