@@ -53,6 +53,7 @@ pub async fn update_spot_pricing_for_region(
         .product_descriptions("Linux/UNIX");
 
     let result = request.send().await?;
+
     let spot_price_history = result
         .spot_price_history
         .ok_or("No spot price history found")?;
@@ -169,24 +170,26 @@ pub async fn update_pricing_for_region(
                         "x86_64".to_string()
                     };
 
-                    sku_to_instance.insert(
-                        instance_name.to_owned(),
-                        OnDemandInstance {
-                            region: region_code.to_string(),
-                            instance_name: instance_name.to_string(),
-                            vcpu_count,
-                            memory,
-                            price_per_hour: 0.0,
-                            arch,
-                            storage: storage.to_owned(),
-                        },
-                    );
+                    if memory != 0.0 {
+                        sku_to_instance.insert(
+                            instance_name.to_owned(),
+                            OnDemandInstance {
+                                region: region_code.to_string(),
+                                instance_name: instance_name.to_string(),
+                                vcpu_count,
+                                memory,
+                                price_per_hour: 0.0,
+                                arch,
+                                storage: storage.to_owned(),
+                            },
+                        );
+                    }
                 }
             }
         }
     }
 
-    let pattern = Regex::new(r"(.*) per On Demand Linux ([A-Za-z0-9.]+) Instance Hour").unwrap();
+    let pattern = Regex::new(r"(.*) per On Demand Linux ([A-Za-z0-9.-]+) Instance Hour").unwrap();
 
     if let Some(terms) = &region_response.terms {
         for details in terms.on_demand.values() {
