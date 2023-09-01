@@ -4,7 +4,9 @@ pub mod routes;
 pub mod validator;
 
 use actix_web::{web::Data, App, HttpServer};
-use routes::{external_data_transfer, inter_region_data_transfer, on_demand, spot, spot_forecast};
+use routes::{
+    external_data_transfer, inter_region_data_transfer, on_demand, spot, spot_forecast, storage,
+};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -25,6 +27,7 @@ async fn main() -> std::io::Result<()> {
             .service(on_demand)
             .service(spot)
             .service(spot_forecast)
+            .service(storage)
             .service(external_data_transfer)
             .service(inter_region_data_transfer)
     })

@@ -4,7 +4,7 @@ use crate::{
     models::{
         external_data_transfer_request::ExternalDataTransferRequest,
         inter_region_data_transfer_request::InterRegionDataTransferRequest,
-        spot_request::SpotRequest,
+        spot_request::SpotRequest, storage_request::StorageRequest,
     },
     validator,
 };
@@ -76,15 +76,15 @@ pub async fn inter_region_data_transfer(
             Ok(data) => {
                 let json_data = serde_json::to_string(&data).unwrap_or_else(|_| "[]".to_string());
 
-                return HttpResponse::Ok().body(json_data);
+                HttpResponse::Ok().body(json_data)
             }
             Err(e) => {
                 eprintln!("Error fetching data: {:?}", e);
-                return HttpResponse::InternalServerError().body("Data fetching failed");
+                HttpResponse::InternalServerError().body("Data fetching failed")
             }
         }
     } else {
-        return HttpResponse::BadRequest().body("Invalid Request Body. Check your parameters.");
+        HttpResponse::BadRequest().body("Invalid Request Body. Check your parameters.")
     }
 }
 
@@ -100,14 +100,38 @@ pub async fn external_data_transfer(
             Ok(data) => {
                 let json_data = serde_json::to_string(&data).unwrap_or_else(|_| "[]".to_string());
 
-                return HttpResponse::Ok().body(json_data);
+                HttpResponse::Ok().body(json_data)
             }
             Err(e) => {
                 eprintln!("Error fetching data: {:?}", e);
-                return HttpResponse::InternalServerError().body("Data fetching failed");
+                HttpResponse::InternalServerError().body("Data fetching failed")
             }
         }
     } else {
-        return HttpResponse::BadRequest().body("Invalid Request Body. Check your parameters.");
+        HttpResponse::BadRequest().body("Invalid Request Body. Check your parameters.")
+    }
+}
+
+#[post("/pricing/storage")]
+pub async fn storage(
+    pool: web::Data<Pool<Postgres>>,
+    req_body: web::Json<StorageRequest>,
+) -> impl Responder {
+    if validator::validate_storage_request(req_body.clone()) {
+        let result = db::fetch_storage(&pool, req_body.into_inner()).await;
+
+        match result {
+            Ok(data) => {
+                let json_data = serde_json::to_string(&data).unwrap_or_else(|_| "[]".to_string());
+
+                HttpResponse::Ok().body(json_data)
+            }
+            Err(e) => {
+                eprintln!("Error fetching data: {:?}", e);
+                HttpResponse::InternalServerError().body("Data fetching failed")
+            }
+        }
+    } else {
+        HttpResponse::BadRequest().body("Invalid Request Body. Check your parameters.")
     }
 }

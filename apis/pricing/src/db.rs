@@ -4,6 +4,8 @@ use crate::models::inter_region_data_transfer_request::InterRegionDataTransferRe
 use crate::models::inter_region_data_transfer_response::InterRegionDataTransferResponse;
 use crate::models::on_demand_response::OnDemandResponse;
 use crate::models::spot_response::SpotResponse;
+use crate::models::storage_request::StorageRequest;
+use crate::models::storage_response::StorageResponse;
 use crate::models::{on_demand_request::OnDemandRequest, spot_request::SpotRequest};
 use actix_web::web;
 use anyhow::Result;
@@ -212,6 +214,48 @@ pub async fn fetch_inter_region_data_transfer(
     // Execute the query
     let rows: Vec<InterRegionDataTransferResponse> =
         query.build_query_as().fetch_all(&***pool).await?;
+
+    Ok(rows)
+}
+
+pub async fn fetch_storage(
+    pool: &web::Data<Pool<Postgres>>,
+    storage_request: StorageRequest,
+) -> Result<Vec<StorageResponse>> {
+    let mut query = QueryBuilder::new("SELECT * FROM storage WHERE 1=1");
+
+    // Handle region
+    if storage_request.region.as_ref().is_some() {
+        query.push(" AND region = ");
+        query.push_bind(&storage_request.region);
+    }
+
+    // Handle volume_api_name
+    if storage_request.volume_api_name.as_ref().is_some() {
+        query.push(" AND volume_api_name = ");
+        query.push_bind(&storage_request.volume_api_name);
+    }
+
+    // Handle storage_media
+    if storage_request.storage_media.as_ref().is_some() {
+        query.push(" AND storage_media = ");
+        query.push_bind(&storage_request.storage_media);
+    }
+
+    // Handle sort_by
+    if storage_request.sort_by.as_ref().is_some() {
+        query.push(" ORDER BY ");
+        query.push_bind(&storage_request.sort_by);
+    }
+
+    // Handle sort_order
+    if storage_request.sort_order.as_ref().is_some() {
+        query.push(" ");
+        query.push_bind(&storage_request.sort_order);
+    }
+
+    // Execute the query
+    let rows: Vec<StorageResponse> = query.build_query_as().fetch_all(&***pool).await.unwrap();
 
     Ok(rows)
 }
