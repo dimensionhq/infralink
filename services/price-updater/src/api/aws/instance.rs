@@ -87,9 +87,6 @@ pub async fn update_spot_pricing_for_region(
     )
     .await?;
 
-    crate::db::insert::spot_pricing_for_forecast(&pool, region_code_string, latest_prices.clone())
-        .await?;
-
     println!("Updated spot pricing for {}.", region_code.bright_cyan());
 
     Ok(())
