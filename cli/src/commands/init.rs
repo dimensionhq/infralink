@@ -134,8 +134,15 @@ pub async fn execute() -> Result<()> {
                 let mut regions_vec: Vec<(AwsRegion, RegionOptStatus)> =
                     regions.into_iter().collect();
 
-                // get the lowest cost spot instance price for each region
                 let small_deployment_prices = crate::core::math::calculate_cheapest_deployment(
+                    regions_vec
+                        .iter()
+                        .map(|(region, _)| region.clone())
+                        .collect(),
+                )
+                .await;
+
+                let large_deployment_prices = crate::core::math::calculate_large_deployment(
                     regions_vec
                         .iter()
                         .map(|(region, _)| region.clone())
@@ -158,7 +165,7 @@ pub async fn execute() -> Result<()> {
 
                     let small_deployment_price = small_deployment_prices.get(region).unwrap();
 
-                    let large_deployment_price = 0.0;
+                    let large_deployment_price = large_deployment_prices.get(region).unwrap();
 
                     table.add_row(
                         vec![
