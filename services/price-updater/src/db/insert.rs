@@ -244,8 +244,17 @@ pub async fn spot_pricing_for_forecast(
 
             let result: Option<f64> = sqlx::query_scalar(&query).fetch_optional(&mut *tx).await?;
 
-            if result.is_none() || (result.unwrap() != spot_price.spot_price) {
-                // If no previous record exists or the latest price is different, insert a new record
+            // If no previous record exists or the latest price is different, insert a new record
+            if let Some(latest_price) = result {
+                if latest_price != spot_price.spot_price {
+                    let insert_query = format!(
+                        "INSERT INTO spot_archive (region, availability_zone, instance_type, price_per_hour, timestamp) VALUES ('{}', '{}', '{}', {}, NOW())",
+                        region, availability_zone, spot_price.instance_type, spot_price.spot_price
+                    );
+
+                    sqlx::query(&insert_query).execute(&mut *tx).await?;
+                }
+            } else {
                 let insert_query = format!(
                     "INSERT INTO spot_archive (region, availability_zone, instance_type, price_per_hour, timestamp) VALUES ('{}', '{}', '{}', {}, NOW())",
                     region, availability_zone, spot_price.instance_type, spot_price.spot_price

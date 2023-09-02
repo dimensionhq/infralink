@@ -91,6 +91,7 @@ impl InfrastructureConfigurationBuilder {
 pub enum InternalConfiguration {
     Aws(InternalAWSConfiguration),
     Gcp,
+    None,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

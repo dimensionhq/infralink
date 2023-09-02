@@ -225,9 +225,13 @@ pub async fn fetch_storage(
     let mut query = QueryBuilder::new("SELECT * FROM storage WHERE 1=1");
 
     // Handle region
-    if storage_request.region.as_ref().is_some() {
-        query.push(" AND region = ");
-        query.push_bind(&storage_request.region);
+    if let Some(ref regions) = storage_request.regions {
+        query.push("AND region IN (");
+        let mut separated = query.separated(", ");
+        for region in regions.iter() {
+            separated.push_bind(region);
+        }
+        separated.push_unseparated(") ");
     }
 
     // Handle volume_api_name

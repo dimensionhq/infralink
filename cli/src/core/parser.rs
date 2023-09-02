@@ -1,5 +1,5 @@
-use super::executor;
 use super::validator;
+use super::validator::ValidatedOptions;
 use crate::constants::commands::COMMANDS_LIST;
 use linked_hash_map::LinkedHashMap;
 use miette::Result;
@@ -7,7 +7,7 @@ use miette::Result;
 use std::env;
 
 // Parse command-line arguments passed in
-pub async fn parse() -> Result<()> {
+pub async fn parse() -> Result<ValidatedOptions> {
     // Collect command-line arguments passed in
     let args = env::args().collect::<Vec<String>>();
 
@@ -74,8 +74,9 @@ pub async fn parse() -> Result<()> {
         .collect::<Vec<String>>();
 
     // Validate the command and the options generated
-    let validated_options = validator::validate(command, options.clone(), Some(raw_args));
-
-    // Pass in the validated options to be executed
-    executor::execute(validated_options).await
+    Ok(validator::validate(
+        command,
+        options.clone(),
+        Some(raw_args),
+    ))
 }

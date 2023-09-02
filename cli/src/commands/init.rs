@@ -1,18 +1,10 @@
-use std::str::FromStr;
-
-use aws_sdk_account::types::RegionOptStatus;
 use colored::Colorize;
-use comfy_table::presets::UTF8_FULL;
-use comfy_table::{modifiers::UTF8_ROUND_CORNERS, Cell};
-use comfy_table::{Color, Table};
-use inquire::{Password, PasswordDisplayMode, Select, Text};
-use keyring::Entry;
 use miette::Result;
 
-use crate::models::region::{AwsRegion, Region};
+use crate::core::{prompt, table};
+use crate::models::region::Region;
 use crate::{
     api,
-    constants::render_config::RENDER_CONFIG,
     core::config::{InfrastructureConfiguration, InternalAWSConfiguration, InternalConfiguration},
     models::cloud_provider::CloudProvider,
 };
@@ -24,19 +16,7 @@ pub async fn execute() -> Result<()> {
             .bright_green()
     );
     // get the app name - can default to current directory name
-    let app_name = Text::new("app name:")
-        .with_render_config(*RENDER_CONFIG)
-        .with_default(
-            std::env::current_dir()
-                .unwrap()
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap(),
-        )
-        .prompt_skippable()
-        .unwrap()
-        .unwrap();
+    let app_name = prompt::app_name()?;
 
     // share a quick link to our cloud provider selection guide
     println!(
@@ -45,15 +25,9 @@ pub async fn execute() -> Result<()> {
     );
 
     // get the cloud provider the user wants to deploy to
-    let cloud_provider = CloudProvider::from_str(
-        Select::new("cloud provider:", vec!["aws", "azure", "gcp", "oracle"])
-            .with_render_config(*RENDER_CONFIG)
-            .prompt()
-            .unwrap(),
-    )
-    .unwrap();
+    let cloud_provider = prompt::cloud_provider()?;
 
-    let internal_configuration: InternalConfiguration;
+    let mut internal_configuration: InternalConfiguration = InternalConfiguration::None;
 
     match cloud_provider {
         CloudProvider::Aws => {
@@ -62,42 +36,7 @@ pub async fn execute() -> Result<()> {
                 internal_configuration =
                     InternalConfiguration::Aws(InternalAWSConfiguration::load(app_name.clone()));
             } else {
-                // guide the user to getting their AWS credentials
-                println!(
-                    "🔑 For help with getting your AWS credentials, see: {}.",
-                    "https://infralink.io/docs/getting-your-cloud-provider-credentials?provider={}"
-                        .bright_magenta()
-                        .underline()
-                );
-
-                // get user's cloud provider credentials and securely store them
-                let access_key_id = Text::new("access key id:")
-                    .with_render_config(*RENDER_CONFIG)
-                    .prompt()
-                    .unwrap();
-
-                // store the secret access key id in ~/.infralink/<app_name>
-                InternalAWSConfiguration::new(access_key_id.clone()).save(app_name.clone());
-
-                // get the user's secret access key
-                let secret_access_key = Password::new("secret access key:")
-                    .with_display_mode(PasswordDisplayMode::Masked)
-                    .without_confirmation()
-                    .with_render_config(*RENDER_CONFIG)
-                    .prompt()
-                    .unwrap();
-
-                internal_configuration = InternalConfiguration::Aws(InternalAWSConfiguration::new(
-                    access_key_id.clone(),
-                ));
-
-                let entry = Entry::new("infralink", &access_key_id).unwrap();
-
-                // Store the secret access key in the keyring
-                match entry.set_password(&secret_access_key) {
-                    Ok(()) => println!("🔐 Credentials securely stored in Vault."),
-                    Err(err) => eprintln!("Failed to store credentials: {}", err),
-                }
+                prompt::cloud_credentials(app_name.clone())?;
             }
         }
         CloudProvider::Azure => todo!(),
@@ -121,93 +60,9 @@ pub async fn execute() -> Result<()> {
             if let InternalConfiguration::Aws(aws_config) = internal_configuration {
                 let regions = api::aws::api::list_regions(aws_config).await;
 
-                let mut table = Table::new();
+                table::render_region_pricing(regions.clone()).await;
 
-                table.set_header(vec![
-                    "name",
-                    "code",
-                    "small deployment",
-                    "large deployment",
-                    "status",
-                ]);
-
-                let mut regions_vec: Vec<(AwsRegion, RegionOptStatus)> =
-                    regions.into_iter().collect();
-
-                let small_deployment_prices = crate::core::math::calculate_cheapest_deployment(
-                    regions_vec
-                        .iter()
-                        .map(|(region, _)| region.clone())
-                        .collect(),
-                )
-                .await;
-
-                let large_deployment_prices = crate::core::math::calculate_large_deployment(
-                    regions_vec
-                        .iter()
-                        .map(|(region, _)| region.clone())
-                        .collect(),
-                )
-                .await;
-
-                // sort the regions by the lowest cost spot instance price
-                regions_vec.sort_by(|(region1, _), (region2, _)| {
-                    let price1 = small_deployment_prices.get(region1).unwrap();
-                    let price2 = small_deployment_prices.get(region2).unwrap();
-                    price1
-                        .partial_cmp(price2)
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                });
-
-                for (region, status) in &regions_vec {
-                    let display_name = region.display_name();
-                    let code = region.code();
-
-                    let small_deployment_price = small_deployment_prices.get(region).unwrap();
-
-                    let large_deployment_price = large_deployment_prices.get(region).unwrap();
-
-                    table.add_row(
-                        vec![
-                            Cell::new(display_name).fg(Color::Blue),
-                            Cell::new(code).fg(Color::Cyan),
-                            Cell::new(small_deployment_price.to_string()).fg(Color::Green),
-                            Cell::new(large_deployment_price.to_string()).fg(Color::Green),
-                            match status {
-                                RegionOptStatus::Enabled => Cell::new("enabled").fg(Color::Green),
-                                RegionOptStatus::EnabledByDefault => {
-                                    Cell::new("enabled").fg(Color::Green)
-                                }
-                                RegionOptStatus::Disabled => Cell::new("opt-in").fg(Color::Yellow),
-                                _ => Cell::new("unavailable").fg(Color::Red),
-                            },
-                        ]
-                        .into_iter(),
-                    );
-                }
-
-                table
-                    .load_preset(UTF8_FULL)
-                    .apply_modifier(UTF8_ROUND_CORNERS);
-
-                println!("{}", table);
-
-                let region_codes: Vec<String> = regions_vec
-                    .iter()
-                    .map(|(region, _)| region.code())
-                    .collect();
-
-                let region_codes_str: Vec<&str> = region_codes.iter().map(AsRef::as_ref).collect();
-
-                let aws_region = AwsRegion::from_str(
-                    Select::new("region:", region_codes_str)
-                        .with_render_config(*RENDER_CONFIG)
-                        .prompt()
-                        .unwrap(),
-                )
-                .unwrap();
-
-                region = Region::Aws(aws_region);
+                region = prompt::region(regions)?;
             }
         }
         CloudProvider::Azure => todo!(),

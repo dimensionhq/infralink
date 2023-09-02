@@ -1,3 +1,8 @@
 [workspace]
-members = ["cli", "apis/pricing", "services/price-updater"]
+members = [
+  "cli",
+  "apis/pricing",
+  "services/price-updater",
+  "models/predictive/spot",
+]
 resolver = "2"

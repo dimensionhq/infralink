@@ -34,6 +34,9 @@ pub async fn update_inter_region_networking_pricing(
     let mut inter_region_transfer_prices: HashMap<String, InterRegionPrice> = HashMap::new();
     let mut external_transfer_prices: HashMap<String, ExternalPrice> = HashMap::new();
 
+    // regex to only match primary aws regions (not wavelength, local zones, etc.)
+    let region_regex = regex::Regex::new(r"^[a-z]{2}-[a-z]+-\d$").unwrap();
+
     for (sku, product) in network_response.products {
         if let Some(attributes) = product.attributes {
             if let Some(transfer_type) = attributes.transfer_type {
@@ -56,6 +59,7 @@ pub async fn update_inter_region_networking_pricing(
                 } else if transfer_type == "AWS Outbound"
                     && attributes.from_location_type == Some("AWS Region".to_string())
                     && attributes.to_location == Some("External".to_string())
+                    && region_regex.is_match(attributes.from_region_code.as_ref().unwrap())
                 {
                     external_transfer_prices.insert(
                         sku,

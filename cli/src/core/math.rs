@@ -62,13 +62,11 @@ async fn calculate_deployment(
         let monthly_cost =
             (instance_cost * 730.0) + ((node_count + 1.0) * (storage["gp3"])) + outbound_data;
 
-        let rounded_monthly_cost: f64;
-
-        if spot_control_plane {
-            rounded_monthly_cost = (monthly_cost * 100.0).round() / 100.0;
+        let rounded_monthly_cost: f64 = if spot_control_plane {
+            (monthly_cost * 100.0).round() / 100.0
         } else {
-            rounded_monthly_cost = (monthly_cost * 10.0).round() / 10.0;
-        }
+            (monthly_cost * 10.0).round() / 10.0
+        };
 
         total_deployment_cost.insert(region, rounded_monthly_cost);
     }
