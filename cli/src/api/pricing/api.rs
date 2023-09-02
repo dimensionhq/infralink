@@ -1,7 +1,8 @@
 use std::{collections::HashMap, str::FromStr};
 
 use miette::{IntoDiagnostic, Result};
-use serde_json::json;
+use reqwest::Client;
+use serde_json::{json, Value};
 
 use crate::{
     constants::regions::UNSUPPORTED_REGIONS,
@@ -12,14 +13,31 @@ use crate::{
 
 const API_URL: &str = "https://pricing.infralink.io";
 
+fn client() -> Result<Client> {
+    reqwest::Client::builder()
+        .use_rustls_tls()
+        .build()
+        .into_diagnostic()
+}
+
+async fn post_data<T: serde::de::DeserializeOwned>(path: &str, body: Value) -> Result<T> {
+    let client = client()?;
+
+    let url = format!("{}/{}", API_URL, path);
+
+    let response = client
+        .post(url)
+        .json(&body)
+        .send()
+        .await
+        .into_diagnostic()?;
+
+    Ok(response.json::<T>().await.into_diagnostic()?)
+}
+
 pub async fn get_cheapest_spot_instances(
     regions: Option<Vec<AwsRegion>>,
 ) -> Result<HashMap<AwsRegion, AwsInstance>> {
-    // Build a reqwest client that uses rustls
-    let client = reqwest::Client::builder().use_rustls_tls().build().unwrap();
-
-    let url = format!("{}/{}", API_URL, "pricing/spot");
-
     // Build the request body based on the arguments
     let mut body = json!({
         "sort-by": "price_per_hour",
@@ -30,19 +48,7 @@ pub async fn get_cheapest_spot_instances(
         body["regions"] = json!(regions.iter().map(|i| i.code()).collect::<Vec<String>>());
     }
 
-    let response = client
-        .post(url)
-        .json(&body)
-        .send()
-        .await
-        .into_diagnostic()
-        .unwrap();
-
-    let results = response
-        .json::<Vec<AwsInstance>>()
-        .await
-        .into_diagnostic()
-        .unwrap();
+    let results = post_data::<Vec<AwsInstance>>("pricing/spot", body).await?;
 
     let mut cheapest_instances: HashMap<AwsRegion, AwsInstance> = HashMap::new();
 
@@ -64,11 +70,6 @@ pub async fn get_cheapest_on_demand_instances(
     min_vcpu: Option<f64>,
     min_memory: Option<f64>,
 ) -> Result<HashMap<AwsRegion, AwsInstance>> {
-    // Build a reqwest client that uses rustls
-    let client = reqwest::Client::builder().use_rustls_tls().build().unwrap();
-
-    let url = format!("{}/{}", API_URL, "pricing/on-demand");
-
     // Build the request body based on the arguments
     let mut body = json!({
         "sort-by": "price_per_hour",
@@ -87,19 +88,7 @@ pub async fn get_cheapest_on_demand_instances(
         body["min-memory"] = json!(min_memory);
     }
 
-    let response = client
-        .post(url)
-        .json(&body)
-        .send()
-        .await
-        .into_diagnostic()
-        .unwrap();
-
-    let results = response
-        .json::<Vec<AwsInstance>>()
-        .await
-        .into_diagnostic()
-        .unwrap();
+    let results = post_data::<Vec<AwsInstance>>("pricing/on-demand", body).await?;
 
     let mut cheapest_instances: HashMap<AwsRegion, AwsInstance> = HashMap::new();
 
@@ -124,11 +113,6 @@ pub async fn get_external_bandwidth_pricing(
     regions: Option<Vec<AwsRegion>>,
     bandwidth: u64,
 ) -> Result<HashMap<AwsRegion, f64>> {
-    // Build a reqwest client that uses rustls
-    let client = reqwest::Client::builder().use_rustls_tls().build().unwrap();
-
-    let url = format!("{}/{}", API_URL, "pricing/data-transfer/external");
-
     // Build the request body based on the arguments
     let mut body = json!({});
 
@@ -138,19 +122,7 @@ pub async fn get_external_bandwidth_pricing(
 
     body["start-range"] = json!(bandwidth);
 
-    let response = client
-        .post(url)
-        .json(&body)
-        .send()
-        .await
-        .into_diagnostic()
-        .unwrap();
-
-    let results = response
-        .json::<Vec<BandwidthTier>>()
-        .await
-        .into_diagnostic()
-        .unwrap();
+    let results = post_data::<Vec<BandwidthTier>>("pricing/data-transfer/external", body).await?;
 
     let mut total_prices: HashMap<AwsRegion, f64> = HashMap::new();
 
@@ -203,11 +175,6 @@ pub async fn get_storage_pricing(
     volume_api_name: Option<String>,
     storage_amount: f64,
 ) -> Result<HashMap<AwsRegion, HashMap<String, f64>>> {
-    // Build a reqwest client that uses rustls
-    let client = reqwest::Client::builder().use_rustls_tls().build().unwrap();
-
-    let url = format!("{}/{}", API_URL, "pricing/storage");
-
     // Build the request body based on the arguments
     let mut body = json!({});
 
@@ -223,19 +190,7 @@ pub async fn get_storage_pricing(
         body["volume-api-name"] = json!(volume_api_name);
     }
 
-    let response = client
-        .post(url)
-        .json(&body)
-        .send()
-        .await
-        .into_diagnostic()
-        .unwrap();
-
-    let results = response
-        .json::<Vec<StoragePricing>>()
-        .await
-        .into_diagnostic()
-        .unwrap();
+    let results = post_data::<Vec<StoragePricing>>("pricing/storage", body).await?;
 
     let mut prices: HashMap<AwsRegion, HashMap<String, f64>> = HashMap::new();
 

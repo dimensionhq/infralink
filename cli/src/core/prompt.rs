@@ -64,7 +64,7 @@ pub fn cloud_credentials(app_name: String) -> Result<InternalConfiguration> {
         .unwrap();
 
     // store the secret access key id in ~/.infralink/<app_name>
-    InternalAWSConfiguration::new(access_key_id.clone()).save(app_name.clone());
+    InternalAWSConfiguration::new(access_key_id.clone()).save(app_name);
 
     // get the user's secret access key
     let secret_access_key = Password::new("secret access key:")
