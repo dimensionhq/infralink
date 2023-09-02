@@ -32,7 +32,7 @@ async fn post_data<T: serde::de::DeserializeOwned>(path: &str, body: Value) -> R
         .await
         .into_diagnostic()?;
 
-    Ok(response.json::<T>().await.into_diagnostic()?)
+    response.json::<T>().await.into_diagnostic()
 }
 
 pub async fn get_cheapest_spot_instances(
