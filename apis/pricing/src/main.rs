@@ -14,7 +14,7 @@ async fn main() -> std::io::Result<()> {
     // Per-day governor configuration for 500 requests per day with bursts of 10
     let per_day_conf = GovernorConfigBuilder::default()
         .per_millisecond(288000)
-        .burst_size(50)
+        .burst_size(25)
         .finish()
         .unwrap();
 
