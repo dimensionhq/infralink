@@ -5,13 +5,14 @@ info:
   version: 0.0.1
 
 servers:
-  - url: https://pricing.infralink.io/
+  - url: https://pricing.infralink.io
     description: Production API Server
 
 paths:
   /pricing/on-demand:
     post:
       summary: Returns a list of on-demand instances that match the given arguments.
+      operationId: getOnDemandPricing
       requestBody:
         required: true
         content:
@@ -34,6 +35,7 @@ paths:
   /pricing/spot:
     post:
       summary: Returns a list of spot instances that match the given arguments.
+      operationId: getSpotPricing
       requestBody:
         required: true
         content:
@@ -56,6 +58,7 @@ paths:
   /pricing/data-transfer/inter-region:
     post:
       summary: Returns a list of inter-region data transfer costs that match the given arguments.
+      operationId: getInterRegionTransferPricing
       requestBody:
         required: true
         content:
@@ -78,6 +81,7 @@ paths:
   /pricing/data-transfer/external:
     post:
       summary: Returns a list of external data transfer costs that match the given arguments.
+      operationId: getExternalTransferPricing
       requestBody:
         required: true
         content:
@@ -100,6 +104,7 @@ paths:
   /pricing/storage:
     post:
       summary: Returns a list of storage options that match the given arguments.
+      operationId: getStoragePricing
       requestBody:
         required: true
         content:
