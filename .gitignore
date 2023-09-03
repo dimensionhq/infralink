@@ -7,3 +7,5 @@ target/
 services/spot-archive/main
 *.DS_Store
 *fly.toml
+*.env
+*infra.toml

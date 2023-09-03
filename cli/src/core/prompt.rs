@@ -1,7 +1,6 @@
 use std::str::FromStr;
 
 use aws_sdk_account::types::RegionOptStatus;
-use colored::Colorize;
 use inquire::{Password, PasswordDisplayMode, Select, Text};
 use keyring::Entry;
 use linked_hash_map::LinkedHashMap;
@@ -48,14 +47,6 @@ pub fn cloud_provider() -> Result<CloudProvider> {
 }
 
 pub fn cloud_credentials(app_name: String) -> Result<InternalConfiguration> {
-    // guide the user to getting their AWS credentials
-    println!(
-        "🔑 For help with getting your AWS credentials, see: {}.",
-        "https://infralink.io/docs/getting-your-cloud-provider-credentials?provider={}"
-            .bright_magenta()
-            .underline()
-    );
-
     // get user's cloud provider credentials and securely store them
     let access_key_id = Text::new("access key id:")
         .with_render_config(*RENDER_CONFIG)
@@ -92,11 +83,14 @@ pub fn cloud_credentials(app_name: String) -> Result<InternalConfiguration> {
 }
 
 pub fn region(regions: LinkedHashMap<AwsRegion, RegionOptStatus>) -> Result<Region> {
-    let region_codes: Vec<String> = regions.iter().map(|(region, _)| region.code()).collect();
+    let region_codes: Vec<String> = regions
+        .iter()
+        .map(|(region, _)| region.display_name())
+        .collect();
 
     let region_codes_str: Vec<&str> = region_codes.iter().map(AsRef::as_ref).collect();
 
-    let aws_region = AwsRegion::from_str(
+    let aws_region = AwsRegion::from_display_name(
         Select::new("region:", region_codes_str)
             .with_render_config(*RENDER_CONFIG)
             .prompt()

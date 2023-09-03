@@ -4,12 +4,13 @@ use aws_config::{AppName, SdkConfig};
 use aws_credential_types::{provider::SharedCredentialsProvider, Credentials};
 use aws_sdk_account::types::RegionOptStatus;
 use linked_hash_map::LinkedHashMap;
+use miette::{IntoDiagnostic, Result};
 
 use crate::{core::config::InternalAWSConfiguration, models::region::AwsRegion};
 
 pub async fn list_regions(
     internal_config: InternalAWSConfiguration,
-) -> LinkedHashMap<AwsRegion, RegionOptStatus> {
+) -> Result<LinkedHashMap<AwsRegion, RegionOptStatus>> {
     let sdk_config = SdkConfig::builder()
         .app_name(AppName::new("infralink").unwrap())
         .credentials_provider(SharedCredentialsProvider::new(Credentials::new(
@@ -32,6 +33,7 @@ pub async fn list_regions(
         .max_results(50)
         .send()
         .await
+        .into_diagnostic()
         .unwrap();
 
     let mut regions_map: LinkedHashMap<AwsRegion, RegionOptStatus> = LinkedHashMap::new();
@@ -43,5 +45,5 @@ pub async fn list_regions(
         );
     }
 
-    regions_map
+    Ok(regions_map)
 }

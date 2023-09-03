@@ -36,7 +36,15 @@ pub async fn execute() -> Result<()> {
                 internal_configuration =
                     InternalConfiguration::Aws(InternalAWSConfiguration::load(app_name.clone()));
             } else {
-                prompt::cloud_credentials(app_name.clone())?;
+                // guide the user to getting their AWS credentials
+                println!(
+                    "🔑 For help with getting your AWS credentials, see: {}.",
+                    "https://infralink.io/docs/getting-your-cloud-provider-credentials?provider=aws"
+                        .bright_magenta()
+                        .underline()
+                );
+
+                internal_configuration = prompt::cloud_credentials(app_name.clone())?;
             }
         }
         CloudProvider::Azure => todo!(),
@@ -58,7 +66,7 @@ pub async fn execute() -> Result<()> {
     match cloud_provider {
         CloudProvider::Aws => {
             if let InternalConfiguration::Aws(aws_config) = internal_configuration {
-                let regions = api::aws::api::list_regions(aws_config).await;
+                let regions = api::aws::api::list_regions(aws_config).await?;
 
                 table::render_region_pricing(regions.clone()).await;
 
@@ -67,7 +75,7 @@ pub async fn execute() -> Result<()> {
         }
         CloudProvider::Azure => todo!(),
         CloudProvider::Gcp => todo!(),
-        CloudProvider::None => todo!(),
+        CloudProvider::None => panic!("No cloud provider selected."),
     }
 
     InfrastructureConfiguration::builder()

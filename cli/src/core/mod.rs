@@ -1,4 +1,5 @@
 pub mod config;
+pub mod docker;
 pub mod error;
 pub mod executor;
 pub mod math;

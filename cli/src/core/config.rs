@@ -13,7 +13,7 @@ pub struct InfrastructureConfiguration {
 pub struct App {
     pub name: String,
     pub cloud_provider: CloudProvider,
-    pub region: Region,
+    pub region: String,
 }
 
 impl InfrastructureConfiguration {
@@ -81,7 +81,7 @@ impl InfrastructureConfigurationBuilder {
             app: App {
                 name: self.app_name,
                 cloud_provider: self.cloud_provider,
-                region: self.region,
+                region: self.region.code().unwrap(),
             },
         }
     }

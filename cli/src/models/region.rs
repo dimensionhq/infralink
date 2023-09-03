@@ -9,6 +9,15 @@ pub enum Region {
     None,
 }
 
+impl Region {
+    pub fn code(&self) -> Option<String> {
+        match self {
+            Region::Aws(aws_region) => Some(aws_region.code()),
+            Region::None => None,
+        }
+    }
+}
+
 #[derive(EnumIter, Debug, PartialEq, Eq, Hash, Clone)]
 pub enum AwsRegion {
     USEast1,
@@ -74,7 +83,7 @@ impl FromStr for AwsRegion {
             "me-south-1" => Ok(AwsRegion::MeSouth1),
             "me-central-1" => Ok(AwsRegion::MeCentral1),
             "sa-east-1" => Ok(AwsRegion::SaEast1),
-            _ => Err(String::from("invalid region")),
+            _ => Err(format!("{} is an invalid region", s)),
         }
     }
 }
@@ -144,6 +153,40 @@ impl AwsRegion {
             AwsRegion::MeSouth1 => String::from("Middle East (Bahrain)"),
             AwsRegion::MeCentral1 => String::from("Middle East (UAE)"),
             AwsRegion::SaEast1 => String::from("South America (Sao Paulo)"),
+        }
+    }
+
+    pub fn from_display_name(name: &str) -> Result<Self, String> {
+        match name {
+            "US East (N. Virginia)" => Ok(AwsRegion::USEast1),
+            "US East (Ohio)" => Ok(AwsRegion::USEast2),
+            "US West (N. California)" => Ok(AwsRegion::USWest1),
+            "US West (Oregon)" => Ok(AwsRegion::USWest2),
+            "Africa (Cape Town)" => Ok(AwsRegion::AfSouth1),
+            "Asia Pacific (Mumbai)" => Ok(AwsRegion::ApSouth1),
+            "Asia Pacific (Hyderabad)" => Ok(AwsRegion::ApSouth2),
+            "Asia Pacific (Hong Kong)" => Ok(AwsRegion::ApEast1),
+            "Asia Pacific (Singapore)" => Ok(AwsRegion::ApSouthEast1),
+            "Asia Pacific (Sydney)" => Ok(AwsRegion::ApSouthEast2),
+            "Asia Pacific (Jakarta)" => Ok(AwsRegion::ApSouthEast3),
+            "Asia Pacific (Melbourne)" => Ok(AwsRegion::ApSouthEast4),
+            "Asia Pacific (Tokyo)" => Ok(AwsRegion::ApNorthEast1),
+            "Asia Pacific (Seoul)" => Ok(AwsRegion::ApNorthEast2),
+            "Asia Pacific (Osaka)" => Ok(AwsRegion::ApNorthEast3),
+            "Canada (Central)" => Ok(AwsRegion::CaCentral1),
+            "Europe (Frankfurt)" => Ok(AwsRegion::EuCentral1),
+            "Europe (Zurich)" => Ok(AwsRegion::EuCentral2),
+            "Europe (Ireland)" => Ok(AwsRegion::EuWest1),
+            "Europe (London)" => Ok(AwsRegion::EuWest2),
+            "Europe (Paris)" => Ok(AwsRegion::EuWest3),
+            "Europe (Milan)" => Ok(AwsRegion::EuSouth1),
+            "Europe (Spain)" => Ok(AwsRegion::EuSouth2),
+            "Europe (Stockholm)" => Ok(AwsRegion::EuNorth1),
+            "Israel (Tel Aviv)" => Ok(AwsRegion::IlCentral1),
+            "Middle East (Bahrain)" => Ok(AwsRegion::MeSouth1),
+            "Middle East (UAE)" => Ok(AwsRegion::MeCentral1),
+            "South America (Sao Paulo)" => Ok(AwsRegion::SaEast1),
+            _ => Err(String::from("Invalid display name")),
         }
     }
 }
