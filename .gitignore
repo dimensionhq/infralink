@@ -4,5 +4,6 @@ apis/pricing/.env
 apis/pricing/regions
 apis/pricing/target
 target/
+services/spot-archive/main
 *.DS_Store
 *fly.toml
