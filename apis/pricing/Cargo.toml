@@ -18,3 +18,4 @@ sqlx = { version = "0.7.1", features = [
   "tls-rustls",
 ] }
 env_logger = "0.10.0"
+actix-governor = "0.4.1"
