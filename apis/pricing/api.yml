@@ -1,0 +1,290 @@
+openapi: 3.0.0
+info:
+  title: Cloud Pricing API
+  description: Pricing information from AWS, Google Cloud, Azure, Oracle Cloud, and more.
+  version: 0.0.1
+
+servers:
+  - url: https://pricing.infralink.io/
+    description: Production API Server
+
+paths:
+  /pricing/on-demand:
+    post:
+      summary: Returns a list of on-demand instances that match the given arguments.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnDemandRequest'
+      responses:
+        '200':
+          description: A JSON array of instances.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OnDemandResponse'
+        '400':
+          description: Invalid request body. Check your parameters.
+        '500':
+          description: Data fetching failed.
+  /pricing/spot:
+    post:
+      summary: Returns a list of spot instances that match the given arguments.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpotRequest'
+      responses:
+        '200':
+          description: A JSON array of spot instances.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SpotResponse'
+        '400':
+          description: Invalid request body. Check your parameters.
+        '500':
+          description: Data fetching failed.
+  /pricing/data-transfer/inter-region:
+    post:
+      summary: Returns a list of inter-region data transfer costs that match the given arguments.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterRegionDataTransferRequest'
+      responses:
+        '200':
+          description: A JSON array of inter-region data transfer costs.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InterRegionDataTransferResponse'
+        '400':
+          description: Invalid request body. Check your parameters.
+        '500':
+          description: Data fetching failed.
+  /pricing/data-transfer/external:
+    post:
+      summary: Returns a list of external data transfer costs that match the given arguments.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExternalDataTransferRequest'
+      responses:
+        '200':
+          description: A JSON array of external data transfer costs.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExternalDataTransferResponse'
+        '400':
+          description: Invalid request body. Check your parameters.
+        '500':
+          description: Data fetching failed.
+  /pricing/storage:
+    post:
+      summary: Returns a list of storage options that match the given arguments.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StorageRequest'
+      responses:
+        '200':
+          description: A JSON array of storage options.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StorageResponse'
+        '400':
+          description: Invalid request body. Check your parameters.
+        '500':
+          description: Data fetching failed.
+
+
+
+components:
+  schemas:
+    OnDemandRequest:
+      type: object
+      properties:
+        regions:
+          type: array
+          items:
+            type: string
+        instance_types:
+          type: array
+          items:
+            type: string
+        min_vcpu:
+          type: number
+          format: float
+        max_vcpu:
+          type: number
+          format: float
+        min_memory:
+          type: number
+          format: float
+        max_memory:
+          type: number
+          format: float
+        min_price_per_hour:
+          type: number
+          format: float
+        max_price_per_hour:
+          type: number
+          format: float
+        sort_by:
+          type: string
+        sort_order:
+          type: string
+        limit:
+          type: integer
+    OnDemandResponse:
+      type: object
+      properties:
+        region:
+          type: string
+        instance_type:
+          type: string
+        architecture:
+          type: string
+        vcpu_count:
+          type: number
+          format: float
+        memory:
+          type: number
+          format: float
+        price_per_hour:
+          type: number
+          format: float
+    SpotRequest:
+      type: object
+      properties:
+        regions:
+          type: array
+          items:
+            type: string
+        availability_zones:
+          type: array
+          items:
+            type: string
+        instance_types:
+          type: array
+          items:
+            type: string
+        min_price_per_hour:
+          type: number
+          format: float
+        max_price_per_hour:
+          type: number
+          format: float
+        sort_by:
+          type: string
+        sort_order:
+          type: string
+        limit:
+          type: integer
+    SpotResponse:
+      type: object
+      properties:
+        availability_zone:
+          type: string
+        region:
+          type: string
+        instance_type:
+          type: string
+        price_per_hour:
+          type: number
+          format: float
+    InterRegionDataTransferRequest:
+      type: object
+      properties:
+        from_region_code:
+          type: string
+        to_region_code:
+          type: string
+        sort_by:
+          type: string
+        sort_order:
+          type: string
+    InterRegionDataTransferResponse:
+      type: object
+      properties:
+        from_region_code:
+          type: string
+        to_region_code:
+          type: string
+        price_per_gb:
+          type: number
+          format: float
+    ExternalDataTransferRequest:
+      type: object
+      properties:
+        from_region_code:
+          type: string
+        start_range:
+          type: integer
+        sort_by:
+          type: string
+        sort_order:
+          type: string
+    ExternalDataTransferResponse:
+      type: object
+      properties:
+        from_region_code:
+          type: string
+        start_range:
+          type: integer
+        end_range:
+          type: integer
+        price_per_gb:
+          type: number
+          format: float
+    StorageRequest:
+      type: object
+      properties:
+        regions:
+          type: array
+          items:
+            type: string
+        volume_api_name:
+          type: string
+        storage_media:
+          type: string
+        sort_by:
+          type: string
+        sort_order:
+          type: string
+
+    StorageResponse:
+      type: object
+      properties:
+        region:
+          type: string
+        volume_api_name:
+          type: string
+        storage_media:
+          type: string
+        price_per_gb_month:
+          type: number
+          format: float
