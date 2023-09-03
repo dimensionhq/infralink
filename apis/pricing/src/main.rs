@@ -11,10 +11,10 @@ use routes::{
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // Per-minute governor configuration
-    let per_minute_conf = GovernorConfigBuilder::default()
-        .per_millisecond(4000)
-        .burst_size(4)
+    // Per-day governor configuration for 500 requests per day with bursts of 10
+    let per_day_conf = GovernorConfigBuilder::default()
+        .per_millisecond(288000)
+        .burst_size(50)
         .finish()
         .unwrap();
 
@@ -29,7 +29,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .wrap(actix_web::middleware::Logger::default())
-            .wrap(Governor::new(&per_minute_conf))
+            .wrap(Governor::new(&per_day_conf))
             .app_data(Data::new(pool.clone()))
             .service(on_demand)
             .service(spot)
