@@ -1,2 +1,7 @@
 cli/infra.toml
 target/
+tmp/
+.terraform*
+terraform*
+.envrc
+terraform/

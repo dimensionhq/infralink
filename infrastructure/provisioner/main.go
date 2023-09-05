@@ -1,69 +1,156 @@
 package main
 
 import (
-	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ec2"
-	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+	"context"
+	"fmt"
 	"log"
 	"os"
+
+	"github.com/apenella/go-ansible/pkg/options"
+	"github.com/apenella/go-ansible/pkg/playbook"
+	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ec2"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto/optup"
+	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
-func setupMaster() error {
-	contents, err := os.ReadFile("master.sh")
-	if err != nil {
-		log.Fatal(err)
+const (
+	Master = "master"
+	Worker = "worker"
+)
+
+type IP struct {
+	identifier string
+	value      string
+}
+
+type Node struct {
+	role         string
+	ip           IP
+	kubeconfig   string
+	user         string
+	ami          string
+	instanceType string
+	keyName      string
+}
+
+func (n *Node) provisionInstance(ctx *pulumi.Context) error {
+	instance, err := ec2.NewInstance(ctx, n.role, &ec2.InstanceArgs{
+		KeyName:      pulumi.String(n.keyName),
+		Ami:          pulumi.String(n.ami),
+		InstanceType: pulumi.String(n.instanceType),
+		Tags: pulumi.StringMap{
+			"Name": pulumi.String(n.role),
+		},
+	})
+
+	ctx.Export(n.ip.identifier, instance.PublicIp)
+
+	return err
+}
+
+func (n *Node) setupK0s(ctx context.Context) error {
+	ansiblePlaybookConnectionOptions := &options.AnsibleConnectionOptions{
+		User: n.user,
 	}
 
-	//var ip pulumi.StringOutput
+	ansiblePlaybookOptions := &playbook.AnsiblePlaybookOptions{
+		Inventory: fmt.Sprintf("%s,", n.ip.value), //That comma is required
+	}
 
-	pulumi.Run(func(ctx *pulumi.Context) error {
-		_, err := ec2.NewInstance(ctx, "web", &ec2.InstanceArgs{
-			KeyName:      pulumi.String("martins.eglitis"),
-			Ami:          pulumi.String("ami-0b5801d081fa3a76c"),
-			InstanceType: pulumi.String("t4g.micro"),
-			Tags: pulumi.StringMap{
-				"Name": pulumi.String("master"),
-			},
-			UserData: pulumi.String(contents),
-		})
+	privilegeEscalationOptions := &options.AnsiblePrivilegeEscalationOptions{
+		Become: true,
+	}
 
-		//ip = instance.PublicIp
-
+	playbookCmd := &playbook.AnsiblePlaybookCmd{
+		Playbooks: []string{
+			"assets/playbooks/install.yaml",
+			fmt.Sprintf("assets/playbooks/%s.yaml", n.role),
+		},
+		ConnectionOptions:          ansiblePlaybookConnectionOptions,
+		Options:                    ansiblePlaybookOptions,
+		PrivilegeEscalationOptions: privilegeEscalationOptions,
+	}
+	err := playbookCmd.Run(ctx)
+	if err != nil {
 		return err
-	})
-
-	return nil
-}
-
-func setupWorker() {
-	contents, err := os.ReadFile("worker.sh")
-	if err != nil {
-		log.Fatal(err)
 	}
 
-	pulumi.Run(func(ctx *pulumi.Context) error {
-		_, err := ec2.NewInstance(ctx, "web", &ec2.InstanceArgs{
-			KeyName:      pulumi.String("martins.eglitis"),
-			Ami:          pulumi.String("ami-0b5801d081fa3a76c"),
-			InstanceType: pulumi.String("t4g.micro"),
-			Tags: pulumi.StringMap{
-				"Name": pulumi.String("worker"),
-			},
-			UserData: pulumi.String(contents),
-		})
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-}
-
-func preSetup() {
-	//TODO - see an example here: https://github.com/k0sproject/k0s/blob/main/docs/custom-ca.md
-	//TODO - have to use libraries for generating new x509 certificates
+	return err
 }
 
 func main() {
-	preSetup()
-	setupMaster()
-	//setupWorker()
+	ctx := context.Background()
+	master := Node{
+		role:         Master,
+		user:         "ubuntu",
+		instanceType: "t4g.micro",
+		ami:          "ami-0b5801d081fa3a76c",
+		ip: IP{
+			identifier: fmt.Sprintf("%s-%s", Master, "ip"),
+		},
+	}
+	worker := Node{
+		role:         Worker,
+		user:         "ubuntu",
+		instanceType: "t4g.micro",
+		ami:          "ami-0b5801d081fa3a76c",
+		ip: IP{
+			identifier: fmt.Sprintf("%s-%s", Worker, "ip"),
+		},
+	}
+
+	deployFunc := func(ctx *pulumi.Context) error {
+		var err error
+
+		err = master.provisionInstance(ctx)
+		if err != nil {
+			return err
+		}
+
+		err = worker.provisionInstance(ctx)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	stack, err := auto.UpsertStackInlineSource(ctx, "aws", "infralink", deployFunc)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	workspace := stack.Workspace()
+
+	err = workspace.InstallPlugin(ctx, "aws", "v6.0.3")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = stack.Refresh(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	stdoutStreamer := optup.ProgressStreams(os.Stdout)
+
+	upRes, err := stack.Up(ctx, stdoutStreamer)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	master.ip.value = fmt.Sprintf("%s", upRes.Outputs[master.ip.identifier].Value)
+
+	err = master.setupK0s(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	worker.ip.value = fmt.Sprintf("%s", upRes.Outputs[worker.ip.identifier].Value)
+
+	err = worker.setupK0s(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
