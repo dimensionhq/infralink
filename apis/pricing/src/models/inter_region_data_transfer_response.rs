@@ -1,6 +1,7 @@
+use juniper::GraphQLObject;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Debug, sqlx::FromRow)]
+#[derive(Deserialize, Serialize, Debug, GraphQLObject, sqlx::FromRow)]
 pub struct InterRegionDataTransferResponse {
     pub from_region_code: String,
     pub to_region_code: String,

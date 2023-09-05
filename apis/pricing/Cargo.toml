@@ -19,3 +19,5 @@ sqlx = { version = "0.7.1", features = [
 ] }
 env_logger = "0.10.0"
 actix-governor = "0.4.1"
+juniper = "0.15.11"
+juniper_actix = "0.4.0"

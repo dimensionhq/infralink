@@ -1,6 +1,7 @@
+use juniper::GraphQLInputObject;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, GraphQLInputObject)]
 #[serde(rename_all = "kebab-case")]
 pub struct OnDemandRequest {
     pub regions: Option<Vec<String>>,
@@ -13,5 +14,5 @@ pub struct OnDemandRequest {
     pub max_price_per_hour: Option<f64>,
     pub sort_by: Option<String>,
     pub sort_order: Option<String>,
-    pub limit: Option<i64>,
+    pub limit: Option<i32>,
 }

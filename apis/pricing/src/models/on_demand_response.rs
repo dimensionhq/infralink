@@ -1,6 +1,7 @@
+use juniper::GraphQLObject;
 use serde::Serialize;
 
-#[derive(Debug, Serialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, GraphQLObject, sqlx::FromRow)]
 pub struct OnDemandResponse {
     pub region: String,
     pub instance_type: String,

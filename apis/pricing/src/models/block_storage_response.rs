@@ -1,6 +1,7 @@
+use juniper::GraphQLObject;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, GraphQLObject)]
 pub struct BlockStorageResponse {
     pub regions: Option<Vec<String>>,
     pub volume_api_name: Option<Vec<String>>,

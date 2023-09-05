@@ -1,6 +1,7 @@
+use juniper::GraphQLObject;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, sqlx::FromRow)]
+#[derive(Serialize, Deserialize, Debug, Clone, GraphQLObject, sqlx::FromRow)]
 pub struct StorageResponse {
     pub region: Option<String>,
     pub volume_api_name: Option<String>,

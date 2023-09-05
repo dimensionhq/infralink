@@ -1,6 +1,7 @@
+use juniper::GraphQLObject;
 use serde::Serialize;
 
-#[derive(Debug, Serialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, GraphQLObject, sqlx::FromRow)]
 pub struct SpotResponse {
     pub availability_zone: String,
     pub region: String,
