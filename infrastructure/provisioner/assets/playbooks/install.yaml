@@ -1,0 +1,23 @@
+- name: Install
+  gather_facts: false
+  hosts: all
+  become: true
+  tasks:
+    - name: Check if k0s exists
+      ansible.builtin.shell:
+        cmd: |
+          command -v k0s 2>&1 /dev/null
+      register: k0s_exists
+      ignore_errors: true
+    - name: Print k0s status
+      ansible.builtin.debug:
+        var: k0s_exists.rc
+    - name: Install k0s
+      when: k0s_exists.rc != 0
+      ansible.builtin.shell:
+        cmd: |
+          curl -sSLf https://get.k0s.sh | sudo sh
+    - name: Install yq
+      ansible.builtin.shell:
+        cmd: |
+          snap install yq

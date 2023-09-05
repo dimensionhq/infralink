@@ -1,0 +1,41 @@
+- name: Master
+  gather_facts: false
+  hosts: all
+  become: true
+  tasks:
+    - name: Configure k0s master
+      ansible.builtin.shell:
+        cmd: |
+          mkdir -p /etc/k0s
+          k0s config create > /tmp/k0s.yaml
+          export IP=$(curl -s ipv4.icanhazip.com)
+          yq ".spec.api.sans += \"$IP\"" < /tmp/k0s.yaml > /etc/k0s/k0s.yaml
+    - name: Check if k0s is running
+      ansible.builtin.shell:
+        cmd: |
+          pgrep k0s
+      register: k0s_running
+      ignore_errors: true
+    - name: Start k0s master
+      when: k0s_running.rc != 0
+      ansible.builtin.shell:
+        cmd: |
+          k0s install controller -c /etc/k0s/k0s.yaml
+          k0s start
+    - name: Generate token and kubectl
+      ansible.builtin.shell:
+        cmd: |
+          k0s token create --role=worker --expiry=1h > /tmp/token
+          k0s kubeconfig admin > /tmp/kubeconfig-local
+          export IP=$(curl -s ipv4.icanhazip.com)
+          yq ".clusters[0].cluster.server = \"https://$IP:6443\"" < /tmp/kubeconfig-local > /tmp/kubeconfig
+    - name: Retrieve token
+      ansible.builtin.fetch:
+        src: /tmp/token
+        dest: tmp/token
+        flat: yes
+    - name: Retrieve kubeconfig
+      ansible.builtin.fetch:
+        src: /tmp/kubeconfig
+        dest: tmp/kubeconfig
+        flat: yes
