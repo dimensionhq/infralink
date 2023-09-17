@@ -27,6 +27,7 @@ pub async fn execute() -> Result<()> {
     // get the cloud provider the user wants to deploy to
     let cloud_provider = prompt::cloud_provider()?;
 
+    #[allow(unused_assignments)]
     let mut internal_configuration: InternalConfiguration = InternalConfiguration::None;
 
     match cloud_provider {

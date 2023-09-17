@@ -1,12 +1,15 @@
 use keyring::Entry;
 use serde::{Deserialize, Serialize};
 
-use crate::models::{cloud_provider::CloudProvider, region::Region};
+use crate::models::{architecture::Architecture, cloud_provider::CloudProvider, region::Region};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct InfrastructureConfiguration {
-    // name of the user's app
+    // high-level information about the user's app
     pub app: App,
+
+    // information about the user's build and configuration
+    pub build: Build,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -14,6 +17,13 @@ pub struct App {
     pub name: String,
     pub cloud_provider: CloudProvider,
     pub region: String,
+    pub architecture: Option<Architecture>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Build {
+    pub max_vcpu: Option<u32>,
+    pub max_memory: Option<u32>,
 }
 
 impl InfrastructureConfiguration {
@@ -50,6 +60,12 @@ pub struct InfrastructureConfigurationBuilder {
     cloud_provider: CloudProvider,
     // region the user wants to deploy to
     region: Region,
+    // architecture of the user's app
+    architecture: Option<Architecture>,
+    // maximum vcpu to be used for the build
+    build_with_max_vcpu: Option<u32>,
+    // max mem that can be used for the build, in megabytes
+    build_with_max_memory: Option<u32>,
 }
 
 impl InfrastructureConfigurationBuilder {
@@ -58,6 +74,9 @@ impl InfrastructureConfigurationBuilder {
             app_name: String::new(),
             cloud_provider: CloudProvider::None,
             region: Region::None,
+            architecture: None,
+            build_with_max_vcpu: None,
+            build_with_max_memory: None,
         }
     }
 
@@ -76,12 +95,35 @@ impl InfrastructureConfigurationBuilder {
         self
     }
 
+    pub fn with_architecture(mut self, architecture: Architecture) -> Self {
+        self.architecture = Some(architecture);
+
+        self
+    }
+
+    pub fn build_with_max_vcpu(mut self, max_vcpu: u32) -> Self {
+        self.build_with_max_vcpu = Some(max_vcpu);
+
+        self
+    }
+
+    pub fn build_with_max_memory(mut self, max_memory: u32) -> Self {
+        self.build_with_max_memory = Some(max_memory);
+
+        self
+    }
+
     pub fn build(self) -> InfrastructureConfiguration {
         InfrastructureConfiguration {
             app: App {
                 name: self.app_name,
                 cloud_provider: self.cloud_provider,
                 region: self.region.code().unwrap(),
+                architecture: self.architecture,
+            },
+            build: Build {
+                max_vcpu: self.build_with_max_vcpu,
+                max_memory: self.build_with_max_memory,
             },
         }
     }

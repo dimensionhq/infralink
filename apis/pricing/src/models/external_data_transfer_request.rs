@@ -1,7 +1,6 @@
-use juniper::GraphQLInputObject;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone, GraphQLInputObject)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub struct ExternalDataTransferRequest {
     pub from_region_code: Option<String>,

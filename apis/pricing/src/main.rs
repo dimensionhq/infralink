@@ -5,24 +5,10 @@ pub mod schema;
 pub mod validator;
 
 use actix_governor::{Governor, GovernorConfigBuilder};
-use actix_web::{
-    web::{self, Data},
-    App, HttpServer,
-};
-use juniper::{EmptyMutation, EmptySubscription};
-use routes::{graphiql_route, graphql, playground_route};
-use schema::{Context, Query, Schema};
+use actix_web::{web::Data, App, HttpServer};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let schema = std::sync::Arc::new(Schema::new(
-        Query,
-        EmptyMutation::<Context>::new(),
-        EmptySubscription::<Context>::new(),
-    ));
-
-    let schema = Data::new(schema);
-
     // Per-day governor configuration for 335 requests per day with bursts of 10
     let per_day_conf = GovernorConfigBuilder::default()
         .per_millisecond(288000)
@@ -42,15 +28,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(actix_web::middleware::Logger::default())
             .wrap(Governor::new(&per_day_conf))
-            .app_data(Data::new(schema.clone()))
             .app_data(Data::new(pool.clone()))
-            .service(
-                web::resource("/graphql")
-                    .route(web::post().to(graphql))
-                    .route(web::get().to(graphql)),
-            )
-            .service(graphiql_route)
-            .service(playground_route)
     })
     .bind("0.0.0.0:8080")?
     .run()

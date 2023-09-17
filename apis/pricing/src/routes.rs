@@ -6,16 +6,13 @@ use crate::{
         inter_region_data_transfer_request::InterRegionDataTransferRequest,
         spot_request::SpotRequest, storage_request::StorageRequest,
     },
-    schema::{Context, Query, Schema},
     validator,
 };
 use actix_web::{
-    get, post,
+    post,
     web::{self},
     HttpResponse, Responder,
 };
-use juniper::{EmptyMutation, EmptySubscription};
-use juniper_actix::{graphiql_handler, graphql_handler, playground_handler};
 use sqlx::{Pool, Postgres};
 
 #[post("/pricing/on-demand")]
@@ -141,30 +138,4 @@ pub async fn storage(
     } else {
         HttpResponse::BadRequest().body("Invalid Request Body. Check your parameters.")
     }
-}
-
-#[get("/graphiql")]
-pub async fn graphiql_route() -> Result<HttpResponse, actix_web::Error> {
-    graphiql_handler("/graphql", None).await
-}
-
-#[get("/playground")]
-pub async fn playground_route() -> Result<HttpResponse, actix_web::Error> {
-    playground_handler("/graphql", None).await
-}
-
-pub async fn graphql(
-    pool: web::Data<Pool<Postgres>>,
-    req: actix_web::HttpRequest,
-    payload: actix_web::web::Payload,
-    schema: web::Data<Schema>,
-) -> Result<HttpResponse, actix_web::Error> {
-    let context = Context {
-        db_pool: pool.clone(),
-    };
-
-    graphql_handler::<Query, EmptyMutation<Context>, EmptySubscription<Context>, Context, _>(
-        &schema, &context, req, payload,
-    )
-    .await
 }

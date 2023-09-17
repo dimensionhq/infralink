@@ -1,7 +1,6 @@
-use juniper::GraphQLInputObject;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, GraphQLInputObject)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub struct StorageRequest {
     pub regions: Option<Vec<String>>,

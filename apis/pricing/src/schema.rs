@@ -1,47 +1,21 @@
-use actix_web::web::Data;
-use juniper::{EmptyMutation, EmptySubscription, FieldResult, RootNode};
-use sqlx::{Pool, Postgres};
+use async_graphql::Object;
 
-use crate::models::{
-    on_demand_request::OnDemandRequest, on_demand_response::OnDemandResponse,
-    spot_request::SpotRequest, spot_response::SpotResponse,
-};
+use crate::models::{on_demand_request::OnDemandRequest, on_demand_response::OnDemandResponse};
 
-pub type Schema = RootNode<'static, Query, EmptyMutation<Context>, EmptySubscription<Context>>;
+struct Query;
 
-pub struct Context {
-    pub db_pool: Data<Pool<Postgres>>,
-}
-
-pub struct Query;
-
-#[juniper::graphql_object(
-    Context = Context,
-)]
+#[Object]
 impl Query {
-    fn on_demand(request: OnDemandRequest) -> FieldResult<OnDemandResponse> {
-        println!("On-demand Request: {:?}", request);
+    async fn on_demand(&self, request: OnDemandRequest) -> OnDemandResponse {
+        println!("{:?}", request);
 
-        // Fetch from DB and return
-        Ok(OnDemandResponse {
-            region: String::new(),
+        OnDemandResponse {
             price_per_hour: 0.0,
-            instance_type: String::new(),
-            architecture: String::from("arm64"),
-            vcpu_count: 1.0,
-            memory: 1.0,
-        })
-    }
-
-    fn spot(request: SpotRequest) -> FieldResult<SpotResponse> {
-        println!("Spot Request: {:?}", request);
-
-        // Fetch from DB and return
-        Ok(SpotResponse {
-            availability_zone: String::new(),
             region: String::new(),
-            price_per_hour: 0.0,
             instance_type: String::new(),
-        })
+            architecture: String::new(),
+            vcpu_count: 0.0,
+            memory: 0.0,
+        }
     }
 }
