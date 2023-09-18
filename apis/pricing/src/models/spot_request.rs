@@ -1,7 +1,7 @@
+use async_graphql::InputObject;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(rename_all = "kebab-case")]
+#[derive(InputObject, Deserialize, Serialize, Debug, Clone)]
 pub struct SpotRequest {
     pub regions: Option<Vec<String>>,
     pub availability_zones: Option<Vec<String>>,

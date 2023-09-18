@@ -1,11 +1,11 @@
+use crate::models::block_storage_request::BlockStorageRequest;
+use crate::models::block_storage_response::BlockStorageResponse;
 use crate::models::external_data_transfer_request::ExternalDataTransferRequest;
 use crate::models::external_data_transfer_response::ExternalDataTransferResponse;
 use crate::models::inter_region_data_transfer_request::InterRegionDataTransferRequest;
 use crate::models::inter_region_data_transfer_response::InterRegionDataTransferResponse;
 use crate::models::on_demand_response::OnDemandResponse;
 use crate::models::spot_response::SpotResponse;
-use crate::models::storage_request::StorageRequest;
-use crate::models::storage_response::StorageResponse;
 use crate::models::{on_demand_request::OnDemandRequest, spot_request::SpotRequest};
 use actix_web::web;
 use anyhow::Result;
@@ -220,8 +220,8 @@ pub async fn fetch_inter_region_data_transfer(
 
 pub async fn fetch_storage(
     pool: &web::Data<Pool<Postgres>>,
-    storage_request: StorageRequest,
-) -> Result<Vec<StorageResponse>> {
+    storage_request: BlockStorageRequest,
+) -> Result<Vec<BlockStorageResponse>> {
     let mut query = QueryBuilder::new("SELECT * FROM storage WHERE 1=1");
 
     // Handle region
@@ -259,7 +259,7 @@ pub async fn fetch_storage(
     }
 
     // Execute the query
-    let rows: Vec<StorageResponse> = query.build_query_as().fetch_all(&***pool).await.unwrap();
+    let rows: Vec<BlockStorageResponse> = query.build_query_as().fetch_all(&***pool).await.unwrap();
 
     Ok(rows)
 }

@@ -2,7 +2,6 @@ use async_graphql::InputObject;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone, InputObject)]
-#[serde(rename_all = "kebab-case")]
 pub struct OnDemandRequest {
     pub regions: Option<Vec<String>>,
     pub instance_types: Option<Vec<String>>,
