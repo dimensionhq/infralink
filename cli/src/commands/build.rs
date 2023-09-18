@@ -25,7 +25,6 @@ pub async fn execute() -> Result<()> {
                 .architecture
                 .clone()
                 .unwrap_or(Architecture::Arm64)
-                .to_string()
         ));
 
         let start = std::time::Instant::now();
