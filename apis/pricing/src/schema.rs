@@ -6,8 +6,7 @@ use sqlx::{Pool, Postgres};
 use crate::{
     db,
     models::{
-        block_storage_request::BlockStorageRequest,
-        block_storage_response::BlockStorageResponse,
+        block_storage_request::BlockStorageRequest, block_storage_response::BlockStorageResponse,
         external_data_transfer_request::ExternalDataTransferRequest,
         external_data_transfer_response::ExternalDataTransferResponse,
         inter_region_data_transfer_request::InterRegionDataTransferRequest,
@@ -30,7 +29,7 @@ impl Query {
             .data::<web::Data<Pool<Postgres>>>()
             .expect("Failed to get the pool");
 
-        let results = match db::fetch_on_demand_data(&pool, request).await {
+        let results = match db::fetch_on_demand_data(pool, request).await {
             Ok(data) => data,
             Err(e) => {
                 eprintln!("Failed to fetch on demand data: {}", e);
@@ -50,7 +49,7 @@ impl Query {
             .data::<web::Data<Pool<Postgres>>>()
             .expect("Failed to get the pool");
 
-        let results = match db::fetch_spot_data(&pool, request).await {
+        let results = match db::fetch_spot_data(pool, request).await {
             Ok(data) => data,
             Err(e) => {
                 eprintln!("Failed to fetch spot data: {}", e);
@@ -74,7 +73,7 @@ impl Query {
             .data::<web::Data<Pool<Postgres>>>()
             .expect("Failed to get the pool");
 
-        let results = match db::fetch_inter_region_data_transfer(&pool, request).await {
+        let results = match db::fetch_inter_region_data_transfer(pool, request).await {
             Ok(data) => data,
             Err(e) => {
                 eprintln!("Failed to fetch inter region data transfer: {}", e);
@@ -100,7 +99,7 @@ impl Query {
             .data::<web::Data<Pool<Postgres>>>()
             .expect("Failed to get the pool");
 
-        let results = match db::fetch_external_data_transfer(&pool, request).await {
+        let results = match db::fetch_external_data_transfer(pool, request).await {
             Ok(data) => data,
             Err(e) => {
                 eprintln!("Failed to fetch external data transfer: {}", e);
@@ -124,7 +123,7 @@ impl Query {
             .data::<web::Data<Pool<Postgres>>>()
             .expect("Failed to get the pool");
 
-        let results = match db::fetch_storage(&pool, request).await {
+        let results = match db::fetch_storage(pool, request).await {
             Ok(data) => data,
             Err(e) => {
                 eprintln!("Failed to fetch block storage data: {}", e);
