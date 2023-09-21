@@ -164,14 +164,12 @@ pub async fn fetch_external_data_transfer(
 
     // Handle sort_by
     if let Some(ref sort_by) = data_transfer_request.sort_by {
-        query.push(" ORDER BY ");
-        query.push_bind(sort_by);
+        query.push(&format!(" ORDER BY {}", sort_by));
     }
 
     // Handle sort_order
     if let Some(ref sort_order) = data_transfer_request.sort_order {
-        query.push(" ");
-        query.push_bind(sort_order);
+        query.push(&format!(" {}", sort_order));
     }
 
     // Execute the query
@@ -201,14 +199,15 @@ pub async fn fetch_inter_region_data_transfer(
 
     // Handle sort_by
     if data_transfer_request.sort_by.as_ref().is_some() {
-        query.push(" ORDER BY ");
-        query.push_bind(&data_transfer_request.sort_by);
+        query.push(&format!(
+            " ORDER BY {}",
+            data_transfer_request.sort_by.unwrap()
+        ));
     }
 
     // Handle sort_order
     if data_transfer_request.sort_order.as_ref().is_some() {
-        query.push(" ");
-        query.push_bind(&data_transfer_request.sort_order);
+        query.push(&format!(" {}", data_transfer_request.sort_order.unwrap()));
     }
 
     // Execute the query
@@ -248,14 +247,12 @@ pub async fn fetch_storage(
 
     // Handle sort_by
     if storage_request.sort_by.as_ref().is_some() {
-        query.push(" ORDER BY ");
-        query.push_bind(&storage_request.sort_by);
+        query.push(&format!(" ORDER BY {}", storage_request.sort_by.unwrap()));
     }
 
     // Handle sort_order
     if storage_request.sort_order.as_ref().is_some() {
-        query.push(" ");
-        query.push_bind(&storage_request.sort_order);
+        query.push(&format!(" {}", storage_request.sort_order.unwrap()));
     }
 
     // Execute the query
