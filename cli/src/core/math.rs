@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 
-use crate::api::pricing::graphql::PricingQuery;
-use crate::api::pricing::models::block_storage_query::BlockStorageQuery;
-use crate::api::pricing::models::external_transfer_query::ExternalDataTransferQuery;
-use crate::api::pricing::models::on_demand_query::OnDemandQuery;
-use crate::api::pricing::models::spot_query::SpotQuery;
 use crate::constants::regions::UNSUPPORTED_REGIONS;
 use crate::models::region::AwsRegion;
+use pricing_sdk::BlockStorageQuery;
+use pricing_sdk::ExternalDataTransferQuery;
+use pricing_sdk::OnDemandQuery;
+use pricing_sdk::PricingQuery;
+use pricing_sdk::SpotQuery;
 
 async fn calculate_deployment(
     regions: Vec<AwsRegion>,

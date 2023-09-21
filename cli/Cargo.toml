@@ -12,14 +12,14 @@ tokio = { version = "1.32.0", features = ["rt-multi-thread", "macros"] }
 linked-hash-map = "0.5.6"
 thiserror = "1.0.47"
 inquire = "0.6.2"
-toml = "0.7.6"
+toml = "0.8.0"
 serde = { version = "1.0.183", features = ["derive"] }
 strum = { version = "0.25.0", features = ["derive"] }
 strum_macros = "0.25.2"
 colored = "2.0.4"
 keyring = "2.0.5"
 dirs = "5.0.1"
-aws-sdk-account = "0.30.0"
+aws-sdk-account = "0.31.1"
 aws-config = "0.56.0"
 aws-credential-types = "0.56.0"
 aws-types = "0.56.0"
@@ -27,4 +27,5 @@ comfy-table = "7.0.1"
 reqwest = { version = "0.11.20", features = ["json", "rustls-tls"] }
 serde_json = "1.0.105"
 nixpacks = "1.13.0"
-bollard = "0.14.0"
+bollard = "0.15.0"
+pricing-sdk = { path = "../pricing-sdk" }
