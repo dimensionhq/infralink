@@ -104,7 +104,7 @@ impl PricingQuery {
         self.query.push_str(" region");
         self.query.push_str(" vcpuCount");
 
-        self.query.push_str("}");
+        self.query.push('}');
 
         self
     }
@@ -170,7 +170,7 @@ impl PricingQuery {
         self.query.push_str(" region");
         self.query.push_str(" availabilityZone");
 
-        self.query.push_str("}");
+        self.query.push('}');
 
         self
     }
@@ -206,7 +206,7 @@ impl PricingQuery {
         self.query.push_str(" pricePerGb");
         self.query.push_str(" toRegionCode");
 
-        self.query.push_str("}");
+        self.query.push('}');
 
         self
     }
@@ -243,7 +243,7 @@ impl PricingQuery {
         self.query.push_str(" pricePerGb");
         self.query.push_str(" startRange");
 
-        self.query.push_str("}");
+        self.query.push('}');
 
         self
     }
@@ -285,7 +285,7 @@ impl PricingQuery {
         self.query.push_str(" storageMedia");
         self.query.push_str(" volumeApiName");
 
-        self.query.push_str("}");
+        self.query.push('}');
 
         self
     }
@@ -309,7 +309,7 @@ impl PricingQuery {
     }
 
     pub fn end(&mut self) -> &mut Self {
-        self.query.push_str("}");
+        self.query.push('}');
 
         self
     }
