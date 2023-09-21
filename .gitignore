@@ -1,7 +1,8 @@
 cli/infra.toml
 target/
-tmp/
+old/tmp/
 .terraform*
 terraform*
 .envrc
 terraform/
+old

@@ -1,3 +1,0 @@
-name: provisioner
-runtime: go
-description: A CLI tool for provisioning K0s clusters
