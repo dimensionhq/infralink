@@ -1,3 +1,10 @@
 [workspace]
-members = ["cli", "pricing-sdk", "apis/pricing", "services/price-updater"]
+members = [
+  "cli",
+  "pricing-sdk",
+  "apis/pricing",
+  "services/price-updater",
+  "services/cost-bot",
+  "types",
+]
 resolver = "2"

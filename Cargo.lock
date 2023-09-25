@@ -1474,6 +1474,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e496a50fda8aacccc86d7529e2c1e0892dbd0f898a6b5645b5561b89c3210efa"
 
 [[package]]
+name = "cost-bot"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "anyhow",
+ "base64 0.21.4",
+ "dotenv",
+ "pricing-sdk",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "toml 0.8.0",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4644,6 +4659,10 @@ name = "typenum"
 version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42ff0bf0c66b8238c6f3b578df37d0b7848e55df8577b3f74f92a69acceeb825"
+
+[[package]]
+name = "types"
+version = "0.1.0"
 
 [[package]]
 name = "ucd-trie"
