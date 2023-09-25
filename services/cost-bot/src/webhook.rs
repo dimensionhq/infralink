@@ -96,7 +96,7 @@ f{}: object(expression: "HEAD:{}") {{
             .repository;
 
         for file in files {
-            let contents = file.1.text;
+            let _contents = file.1.text;
 
             // next, parse the contents of the infra.toml file and analyse it.
         }
