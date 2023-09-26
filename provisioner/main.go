@@ -1,19 +1,27 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws"
-	"log"
-	"os"
-
 	"github.com/apenella/go-ansible/pkg/options"
 	"github.com/apenella/go-ansible/pkg/playbook"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/client"
+	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ec2"
+	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ecr"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/s3"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optup"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+	"io"
+	"log"
+	"os"
 )
 
 const (
@@ -33,14 +41,13 @@ type Node struct {
 	user         string
 	ami          string
 	instanceType string
-	keyName      string
 }
 
 func provisionBucket(ctx *pulumi.Context) error {
 	bucket, err := s3.NewBucket(ctx, "infralink", &s3.BucketArgs{
 		Acl: pulumi.String("private"),
 		Tags: pulumi.StringMap{
-			"Name": pulumi.String("infralink"),
+			"Name": pulumi.String("infralink"), //TODO - do not hardcode
 		},
 	})
 
@@ -79,6 +86,76 @@ func (n *Node) setupK0s(ctx context.Context) error {
 	return err
 }
 
+func pushImage(repository, username, password, token string) error {
+	ctx := context.Background()
+
+	var authConfig = registry.AuthConfig{
+		ServerAddress: repository,
+		Username:      username,
+		Password:      password,
+		IdentityToken: token,
+	}
+
+	authConfigBytes, _ := json.Marshal(authConfig)
+	authConfigEncoded := base64.URLEncoding.EncodeToString(authConfigBytes)
+
+	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return err
+	}
+
+	tag := repository + ":latest" //TODO - do not hardcode
+	opts := types.ImagePushOptions{RegistryAuth: authConfigEncoded}
+	rd, err := dockerClient.ImagePush(ctx, tag, opts)
+	if err != nil {
+		return err
+	}
+	defer rd.Close()
+
+	err = uploadProgress(rd)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Push successful!")
+
+	return nil
+}
+
+type ErrorLine struct {
+	Error       string      `json:"error"`
+	ErrorDetail ErrorDetail `json:"errorDetail"`
+}
+
+type ErrorDetail struct {
+	Message string `json:"message"`
+}
+
+func uploadProgress(rd io.Reader) error {
+	var lastLine string
+
+	scanner := bufio.NewScanner(rd)
+	for scanner.Scan() {
+		lastLine = scanner.Text()
+		fmt.Println(scanner.Text())
+	}
+
+	errLine := &ErrorLine{}
+	err := json.Unmarshal([]byte(lastLine), errLine)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if errLine.Error != "" {
+		return errors.New(errLine.Error)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func main() {
 	ctx := context.Background()
 	master := Node{
@@ -86,7 +163,6 @@ func main() {
 		user:         "ubuntu",
 		instanceType: "t4g.micro",
 		ami:          "ami-0b5801d081fa3a76c",
-		keyName:      "martins.eglitis",
 		ip: IP{
 			identifier: fmt.Sprintf("%s-%s", Master, "ip"),
 		},
@@ -96,7 +172,6 @@ func main() {
 		user:         "ubuntu",
 		instanceType: "t4g.micro",
 		ami:          "ami-0b5801d081fa3a76c",
-		keyName:      "martins.eglitis",
 		ip: IP{
 			identifier: fmt.Sprintf("%s-%s", Worker, "ip"),
 		},
@@ -187,12 +262,31 @@ func main() {
 		}
 
 		keypair, err := ec2.NewKeyPair(ctx, "keypair", &ec2.KeyPairArgs{
-			KeyName:   pulumi.String("replace-me"),
+			KeyName:   pulumi.String("infralink"), //TODO - do not hardcode
 			PublicKey: pulumi.String(key),
 		})
 		if err != nil {
 			return err
 		}
+
+		repository, err := ecr.NewRepository(ctx, "repository", &ecr.RepositoryArgs{
+			Name: pulumi.String("infralink"),
+		})
+		if err != nil {
+			return err
+		}
+
+		ctx.Export("repository", repository.RepositoryUrl)
+
+		token, err := ecr.GetAuthorizationToken(ctx, nil, nil)
+		if err != nil {
+			return err
+		}
+
+		ctx.Export("username", pulumi.String(token.UserName))
+		ctx.Export("password", pulumi.String(token.Password))
+		ctx.Export("token", pulumi.String(token.AuthorizationToken))
+		ctx.Export("id", pulumi.String(token.Id))
 
 		//Master setup
 		subnetMaster, err := ec2.NewSubnet(ctx, "subnet-master", &ec2.SubnetArgs{
@@ -282,30 +376,6 @@ func main() {
 
 		ctx.Export(worker.ip.identifier, workerInstance.PublicIp)
 
-		//_, err = ec2.NewInstance(ctx, "master-test", &ec2.InstanceArgs{
-		//	KeyName:      pulumi.String("martins.eglitis"),
-		//	Ami:          pulumi.String(master.ami),
-		//	InstanceType: pulumi.String(master.instanceType),
-		//	Tags: pulumi.StringMap{
-		//		"Name": pulumi.String("master-test"),
-		//	},
-		//})
-		//if err != nil {
-		//	return err
-		//}
-		//
-		//_, err = ec2.NewInstance(ctx, "worker-test", &ec2.InstanceArgs{
-		//	KeyName:      pulumi.String("martins.eglitis"),
-		//	Ami:          pulumi.String(worker.ami),
-		//	InstanceType: pulumi.String(worker.instanceType),
-		//	Tags: pulumi.StringMap{
-		//		"Name": pulumi.String("worker-test"),
-		//	},
-		//})
-		//if err != nil {
-		//	return err
-		//}
-
 		return nil
 	})
 	if err != nil {
@@ -329,8 +399,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println(secondaryUpResult.Outputs)
-
 	master.ip.value = fmt.Sprintf("%s", secondaryUpResult.Outputs[master.ip.identifier].Value)
 
 	err = master.setupK0s(ctx)
@@ -341,6 +409,16 @@ func main() {
 	worker.ip.value = fmt.Sprintf("%s", secondaryUpResult.Outputs[worker.ip.identifier].Value)
 
 	err = worker.setupK0s(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	repository := fmt.Sprintf("%s", secondaryUpResult.Outputs["repository"].Value)
+	username := fmt.Sprintf("%s", secondaryUpResult.Outputs["username"].Value)
+	password := fmt.Sprintf("%s", secondaryUpResult.Outputs["password"].Value)
+	token := fmt.Sprintf("%s", secondaryUpResult.Outputs["token"].Value)
+
+	err = pushImage(repository, username, password, token)
 	if err != nil {
 		log.Fatal(err)
 	}
