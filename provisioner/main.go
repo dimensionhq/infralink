@@ -17,7 +17,6 @@ import (
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ecr"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/s3"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
-	"github.com/pulumi/pulumi/sdk/v3/go/auto/optup"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"io"
 	"log"
@@ -177,7 +176,7 @@ func main() {
 		},
 	}
 
-	stdoutStreamer := optup.ProgressStreams(os.Stdout)
+	//stdoutStreamer := optup.ProgressStreams(f)
 
 	initialStack, err := auto.UpsertStackInlineSource(ctx, "aws", "infralink", func(ctx *pulumi.Context) error {
 		return provisionBucket(ctx)
@@ -198,7 +197,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	initialUpResult, err := initialStack.Up(ctx, stdoutStreamer)
+	initialUpResult, err := initialStack.Up(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -394,24 +393,24 @@ func main() {
 		log.Fatal(err)
 	}
 
-	secondaryUpResult, err := secondaryStack.Up(ctx, stdoutStreamer)
+	secondaryUpResult, err := secondaryStack.Up(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	master.ip.value = fmt.Sprintf("%s", secondaryUpResult.Outputs[master.ip.identifier].Value)
 
-	err = master.setupK0s(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
+	//err = master.setupK0s(ctx)
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
 
 	worker.ip.value = fmt.Sprintf("%s", secondaryUpResult.Outputs[worker.ip.identifier].Value)
 
-	err = worker.setupK0s(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
+	//err = worker.setupK0s(ctx)
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
 
 	repository := fmt.Sprintf("%s", secondaryUpResult.Outputs["repository"].Value)
 	username := fmt.Sprintf("%s", secondaryUpResult.Outputs["username"].Value)
