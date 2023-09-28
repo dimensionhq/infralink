@@ -1,8 +1,6 @@
 mod api;
 mod commands;
-mod constants;
 mod core;
-mod models;
 
 use crate::core::{executor, parser};
 use miette::Result;

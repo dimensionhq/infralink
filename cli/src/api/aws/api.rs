@@ -6,7 +6,7 @@ use aws_sdk_account::types::RegionOptStatus;
 use linked_hash_map::LinkedHashMap;
 use miette::{IntoDiagnostic, Result};
 
-use crate::{core::config::InternalAWSConfiguration, models::region::AwsRegion};
+use types::{config::InternalAWSConfiguration, region::AwsRegion};
 
 pub async fn list_regions(
     internal_config: InternalAWSConfiguration,

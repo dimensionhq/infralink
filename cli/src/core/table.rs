@@ -2,7 +2,7 @@ use aws_sdk_account::types::RegionOptStatus;
 use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Cell, Color, Table};
 use linked_hash_map::LinkedHashMap;
 
-use crate::models::region::AwsRegion;
+use types::region::AwsRegion;
 
 pub async fn render_region_pricing(regions: LinkedHashMap<AwsRegion, RegionOptStatus>) {
     let mut table = Table::new();

@@ -1366,6 +1366,7 @@ dependencies = [
  "bollard",
  "colored",
  "comfy-table",
+ "constants",
  "dirs",
  "inquire",
  "keyring",
@@ -1381,7 +1382,8 @@ dependencies = [
  "strum_macros 0.25.2",
  "thiserror",
  "tokio",
- "toml 0.8.0",
+ "toml 0.8.1",
+ "types",
 ]
 
 [[package]]
@@ -1441,6 +1443,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28c122c3980598d243d63d9a704629a2d748d101f278052ff068be5a4423ab6f"
 
 [[package]]
+name = "constants"
+version = "0.1.0"
+dependencies = [
+ "inquire",
+ "once_cell",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1485,7 +1495,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "toml 0.8.0",
+ "toml 0.8.1",
 ]
 
 [[package]]
@@ -2622,6 +2632,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b823e83b2affd8f40a9ee8c29dbc56404c1e34cd2710921f2801e2cf29527afa"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "math"
+version = "0.1.0"
+dependencies = [
+ "constants",
+ "pricing-sdk",
+ "types",
 ]
 
 [[package]]
@@ -4544,14 +4563,14 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c226a7bba6d859b63c92c4b4fe69c5b6b72d0cb897dbc8e6012298e6154cb56e"
+checksum = "1bc1433177506450fe920e46a4f9812d0c211f5dd556da10e731a0a3dfa151f0"
 dependencies = [
  "serde",
  "serde_spanned",
  "toml_datetime",
- "toml_edit 0.20.0",
+ "toml_edit 0.20.1",
 ]
 
 [[package]]
@@ -4576,9 +4595,9 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
-version = "0.20.0"
+version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ff63e60a958cefbb518ae1fd6566af80d9d4be430a33f3723dfc47d1d411d95"
+checksum = "ca676d9ba1a322c1b64eb8045a5ec5c0cfb0c9d08e15e9ff622589ad5221c8fe"
 dependencies = [
  "indexmap 2.0.0",
  "serde",
@@ -4663,6 +4682,14 @@ checksum = "42ff0bf0c66b8238c6f3b578df37d0b7848e55df8577b3f74f92a69acceeb825"
 [[package]]
 name = "types"
 version = "0.1.0"
+dependencies = [
+ "dirs",
+ "keyring",
+ "serde",
+ "strum 0.25.0",
+ "strum_macros 0.25.2",
+ "toml 0.8.1",
+]
 
 [[package]]
 name = "ucd-trie"

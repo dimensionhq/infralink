@@ -6,13 +6,12 @@ use keyring::Entry;
 use linked_hash_map::LinkedHashMap;
 use miette::{IntoDiagnostic, Result};
 
-use crate::{
-    constants::render_config::RENDER_CONFIG,
-    core::config::{InternalAWSConfiguration, InternalConfiguration},
-    models::{
-        cloud_provider::CloudProvider,
-        region::{AwsRegion, Region},
-    },
+use constants::render_config::RENDER_CONFIG;
+
+use types::config::{InternalAWSConfiguration, InternalConfiguration};
+use types::{
+    cloud_provider::CloudProvider,
+    region::{AwsRegion, Region},
 };
 
 pub fn app_name() -> Result<String> {

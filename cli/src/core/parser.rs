@@ -1,6 +1,6 @@
 use super::validator;
 use super::validator::ValidatedOptions;
-use crate::constants::commands::COMMANDS_LIST;
+use constants::commands::COMMANDS_LIST;
 use linked_hash_map::LinkedHashMap;
 use miette::Result;
 

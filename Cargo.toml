@@ -6,5 +6,7 @@ members = [
   "services/price-updater",
   "services/cost-bot",
   "types",
+  "math",
+  "constants",
 ]
 resolver = "2"

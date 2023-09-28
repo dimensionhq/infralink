@@ -1,12 +1,13 @@
 use colored::Colorize;
 use miette::Result;
 
+use crate::api;
 use crate::core::{prompt, table};
-use crate::models::region::Region;
-use crate::{
-    api,
-    core::config::{InfrastructureConfiguration, InternalAWSConfiguration, InternalConfiguration},
-    models::cloud_provider::CloudProvider,
+use types::region::Region;
+
+use types::{
+    cloud_provider::CloudProvider,
+    config::{InfrastructureConfiguration, InternalAWSConfiguration, InternalConfiguration},
 };
 
 pub async fn execute() -> Result<()> {

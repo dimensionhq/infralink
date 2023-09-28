@@ -1,7 +1,7 @@
 use keyring::Entry;
 use serde::{Deserialize, Serialize};
 
-use crate::models::{architecture::Architecture, cloud_provider::CloudProvider, region::Region};
+use super::{architecture::Architecture, cloud_provider::CloudProvider, region::Region};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct InfrastructureConfiguration {

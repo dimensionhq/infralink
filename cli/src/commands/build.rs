@@ -4,7 +4,7 @@ use nixpacks::nixpacks::{
     builder::docker::DockerBuilderOptions, plan::generator::GeneratePlanOptions,
 };
 
-use crate::{core::config::InfrastructureConfiguration, models::architecture::Architecture};
+use types::{architecture::Architecture, config::InfrastructureConfiguration};
 
 pub async fn execute() -> Result<()> {
     // Load the current configuration

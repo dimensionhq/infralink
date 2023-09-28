@@ -29,3 +29,5 @@ serde_json = "1.0.105"
 nixpacks = "1.13.0"
 bollard = "0.15.0"
 pricing-sdk = { path = "../pricing-sdk" }
+types = { path = "../types" }
+constants = { path = "../constants" }
