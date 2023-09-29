@@ -33,10 +33,11 @@ func getBool(key string) bool {
 }
 
 func main() {
+	pflag.String("name", "infralink", "name for some AWS resources")
 	pflag.String("instance", "t4g.micro", "AWS EC2 instance type")
 	pflag.String("ami", "ami-0b5801d081fa3a76c", "AWS AMI ID")
 	pflag.String("user", "ubuntu", "AWS EC2 system user")
-	pflag.String("key", "~/.ssh/id-rsa.pub", "SSH public key path")
+	pflag.String("key", "/path/to/your/id_rsa.pub", "SSH public key path")
 	pflag.Bool("verbose", false, "toggle verbosity (warning: outputs sensitive information)")
 
 	//TODO - find a way to get rid of the glog CLI flags
@@ -61,12 +62,11 @@ func main() {
 		log.Fatal(err)
 	}
 	viper.OnConfigChange(func(e fsnotify.Event) {
-		if viper.GetBool("verbose") {
-			fmt.Println("Config file changed:", e.Name)
-		}
+		fmt.Println("Config file changed:", e.Name)
 	})
 	viper.WatchConfig()
 
+	name := getString("name")
 	ami := getString("ami")
 	instance := getString("instance")
 	user := getString("user")
@@ -74,6 +74,7 @@ func main() {
 	verbose := getBool("verbose")
 
 	common := Common{
+		name:     name,
 		key:      key,
 		instance: instance,
 		user:     user,
@@ -108,12 +109,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	stdoutStreamer := optup.ProgressStreams(os.Stdout)
-
 	var initialUpResult auto.UpResult
 
-	if viper.GetBool("verbose") {
-		initialUpResult, err = initialStack.Up(ctx, stdoutStreamer)
+	if verbose {
+		initialUpResult, err = initialStack.Up(ctx, optup.ProgressStreams(os.Stdout))
 	} else {
 		initialUpResult, err = initialStack.Up(ctx)
 	}
@@ -148,10 +147,10 @@ func main() {
 
 	var secondaryUpResult auto.UpResult
 
-	if viper.GetBool("verbose") {
-		secondaryUpResult, err = initialStack.Up(ctx, stdoutStreamer)
+	if verbose {
+		secondaryUpResult, err = secondaryStack.Up(ctx, optup.ProgressStreams(os.Stdout))
 	} else {
-		secondaryUpResult, err = initialStack.Up(ctx)
+		secondaryUpResult, err = secondaryStack.Up(ctx)
 	}
 	if err != nil {
 		log.Fatal(err)

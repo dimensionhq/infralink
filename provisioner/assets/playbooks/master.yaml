@@ -37,5 +37,5 @@
     - name: Download kubeconfig
       ansible.builtin.fetch:
         src: /tmp/kubeconfig
-        dest: tmp/kubeconfig
+        dest: ./../../tmp/kubeconfig
         flat: yes

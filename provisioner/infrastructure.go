@@ -33,10 +33,13 @@ func upsertInitialStack(ctx *pulumi.Context, common Common) error {
 	bucket, err := s3.NewBucket(ctx, common.name, &s3.BucketArgs{
 		Acl: pulumi.String("private"),
 	})
+	if err != nil {
+		return err
+	}
 
 	ctx.Export("bucket", bucket.Bucket)
 
-	return err
+	return nil
 }
 
 func upsertSecondaryStack(ctx *pulumi.Context, common Common, master Node, worker Node) error {
@@ -225,7 +228,6 @@ func (n *Node) setupK0s(ctx context.Context, common Common) error {
 	}
 
 	ansiblePlaybookOptions := &playbook.AnsiblePlaybookOptions{
-		Verbose:   common.verbose,
 		Inventory: fmt.Sprintf("%s,", n.ip), //That comma is required
 	}
 

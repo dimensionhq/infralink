@@ -42,7 +42,10 @@ func pushImage(repository, username, password, token string) error {
 	}
 
 	tag := repository + ":latest" //TODO - do not hardcode
-	opts := types.ImagePushOptions{RegistryAuth: authConfigEncoded}
+	opts := types.ImagePushOptions{
+		RegistryAuth: authConfigEncoded,
+	}
+
 	reader, err := dockerClient.ImagePush(ctx, tag, opts)
 	if err != nil {
 		return err
