@@ -5,7 +5,7 @@
   tasks:
     - name: Upload token
       ansible.builtin.copy:
-        src: tmp/token
+        src: ./../../tmp/token
         dest: /tmp/token
     - name: Configure k0s worker
       ansible.builtin.shell:

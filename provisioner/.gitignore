@@ -1,9 +1,8 @@
 cli/infra.toml
-target/
-old/tmp/
 .terraform*
 terraform*
 .envrc
-.env
 terraform/
 old
+provisioner
+.env

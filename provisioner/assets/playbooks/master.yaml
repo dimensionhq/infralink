@@ -32,7 +32,7 @@
     - name: Download token
       ansible.builtin.fetch:
         src: /tmp/token
-        dest: tmp/token
+        dest: ./../../tmp/token
         flat: yes
     - name: Download kubeconfig
       ansible.builtin.fetch:

@@ -1,0 +1,5 @@
+instance="t4g.micro"
+ami="ami-0b5801d081fa3a76c"
+user="ubuntu"
+key="~/.ssh/id-rsa.pub"
+verbose="false"
