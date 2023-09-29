@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use keyring::Entry;
 use serde::{Deserialize, Serialize};
 
@@ -9,7 +11,40 @@ pub struct InfrastructureConfiguration {
     pub app: App,
 
     // information about the user's build and configuration
-    pub build: Build,
+    pub build: Option<Build>,
+
+    // pod configuration
+    pub shape: Option<Shape>,
+
+    // storage
+    pub storage: Option<Storage>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Shape {
+    pub vcpu: u32,
+    pub memory: f32,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Storage {
+    pub r#type: Option<StorageType>,
+    pub size: f64,
+    pub unit: StorageUnit,
+    pub iops: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum StorageType {
+    SSD,
+    HDD,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum StorageUnit {
+    MB,
+    GB,
+    TB,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -50,6 +85,14 @@ impl InfrastructureConfiguration {
 
         std::io::Write::write_all(&mut std::io::BufWriter::new(file), configuration.as_bytes())
             .unwrap();
+    }
+}
+
+impl FromStr for InfrastructureConfiguration {
+    type Err = toml::de::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        toml::from_str(s)
     }
 }
 
@@ -121,10 +164,20 @@ impl InfrastructureConfigurationBuilder {
                 region: self.region.code().unwrap(),
                 architecture: self.architecture,
             },
-            build: Build {
+            build: Some(Build {
                 max_vcpu: self.build_with_max_vcpu,
                 max_memory: self.build_with_max_memory,
-            },
+            }),
+            shape: Some(Shape {
+                vcpu: 0,
+                memory: 0.0,
+            }),
+            storage: Some(Storage {
+                r#type: Some(StorageType::SSD),
+                size: 0.0,
+                unit: StorageUnit::GB,
+                iops: None,
+            }),
         }
     }
 }

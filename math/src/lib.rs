@@ -2,26 +2,22 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use constants::regions::UNSUPPORTED_REGIONS;
+use indexmap::IndexMap;
 use pricing_sdk::BlockStorageQuery;
 use pricing_sdk::ExternalDataTransferQuery;
 use pricing_sdk::OnDemandQuery;
 use pricing_sdk::PricingQuery;
 use pricing_sdk::SpotQuery;
+use types::deployment_configuration::DeploymentConfiguration;
 use types::region::AwsRegion;
 
-async fn calculate_deployment(
-    regions: Vec<AwsRegion>,
-    control_plane_specs: Option<(f32, f32)>,
-    spot_control_plane: bool,
-    node_specs: (f32, f32),
-    storage_size_gb: f32,
-    node_count: f64,
-    outbound_data_gb: u64,
-) -> HashMap<AwsRegion, f64> {
+pub async fn calculate_deployment(
+    deployment_configuration: DeploymentConfiguration,
+) -> HashMap<AwsRegion, IndexMap<String, f64>> {
     let mut query = PricingQuery::start();
 
     // load spot & on-demand options for the control plane
-    if spot_control_plane {
+    if deployment_configuration.spot_control_plane {
         query.with_spot(
             None,
             SpotQuery {
@@ -29,7 +25,14 @@ async fn calculate_deployment(
                 instance_types: None,
                 max_price_per_hour: None,
                 min_price_per_hour: None,
-                regions: Some(regions.clone().into_iter().map(|r| r.code()).collect()),
+                regions: Some(
+                    deployment_configuration
+                        .regions
+                        .clone()
+                        .into_iter()
+                        .map(|r| r.code())
+                        .collect(),
+                ),
                 sort_by: Some(String::from("price_per_hour")),
                 sort_order: Some(String::from("asc")),
                 limit: None,
@@ -43,10 +46,17 @@ async fn calculate_deployment(
                 max_memory: None,
                 max_price_per_hour: None,
                 max_vcpu: None,
-                min_memory: Some(control_plane_specs.unwrap().1),
+                min_memory: Some(deployment_configuration.control_plane_specs.unwrap().1),
                 min_price_per_hour: None,
-                min_vcpu: Some(control_plane_specs.unwrap().0),
-                regions: Some(regions.clone().into_iter().map(|r| r.code()).collect()),
+                min_vcpu: Some(deployment_configuration.control_plane_specs.unwrap().0),
+                regions: Some(
+                    deployment_configuration
+                        .regions
+                        .clone()
+                        .into_iter()
+                        .map(|r| r.code())
+                        .collect(),
+                ),
                 sort_by: Some(String::from("price_per_hour")),
                 sort_order: Some(String::from("asc")),
                 limit: None,
@@ -62,10 +72,17 @@ async fn calculate_deployment(
             max_memory: None,
             max_price_per_hour: None,
             max_vcpu: None,
-            min_memory: Some(node_specs.1),
+            min_memory: Some(deployment_configuration.node_specs.1),
             min_price_per_hour: None,
-            min_vcpu: Some(node_specs.0),
-            regions: Some(regions.clone().into_iter().map(|r| r.code()).collect()),
+            min_vcpu: Some(deployment_configuration.node_specs.0),
+            regions: Some(
+                deployment_configuration
+                    .regions
+                    .clone()
+                    .into_iter()
+                    .map(|r| r.code())
+                    .collect(),
+            ),
             sort_by: Some(String::from("price_per_hour")),
             sort_order: Some(String::from("asc")),
             limit: None,
@@ -74,7 +91,14 @@ async fn calculate_deployment(
 
     // load options for the storage
     query.with_block_storage(BlockStorageQuery {
-        regions: Some(regions.clone().into_iter().map(|r| r.code()).collect()),
+        regions: Some(
+            deployment_configuration
+                .regions
+                .clone()
+                .into_iter()
+                .map(|r| r.code())
+                .collect(),
+        ),
         sort_by: Some(String::from("price_per_gb_month")),
         sort_order: Some(String::from("asc")),
         storage_media: Some(String::from("SSD")),
@@ -86,10 +110,10 @@ async fn calculate_deployment(
         from_region_code: None,
         sort_by: None,
         sort_order: None,
-        start_range: Some(storage_size_gb as i32),
+        start_range: Some(deployment_configuration.storage_size_gb as i32),
     });
 
-    let mut total_deployment_cost: HashMap<AwsRegion, f64> = HashMap::new();
+    let mut total_deployment_cost: HashMap<AwsRegion, IndexMap<String, f64>> = HashMap::new();
 
     query.end();
 
@@ -98,7 +122,7 @@ async fn calculate_deployment(
     let mut control_plane_cost: HashMap<AwsRegion, f64> = HashMap::new();
 
     // calculate and populate the cost of the control plane
-    if spot_control_plane {
+    if deployment_configuration.spot_control_plane {
         let spot_options = result.data.spot.unwrap();
 
         let mut cheapest_spot_in_region: HashMap<AwsRegion, f64> = HashMap::new();
@@ -121,6 +145,10 @@ async fn calculate_deployment(
         let mut cheapest_on_demand_in_region: HashMap<AwsRegion, f64> = HashMap::new();
 
         for on_demand in on_demand_options {
+            if on_demand.price_per_hour == 0.0 {
+                continue;
+            }
+
             let region = AwsRegion::from_str(&on_demand.region).unwrap();
             let current_price = cheapest_on_demand_in_region.get(&region);
 
@@ -205,40 +233,81 @@ async fn calculate_deployment(
         data_transfer_cost.insert(region, price);
     }
 
-    for region in regions {
+    for region in deployment_configuration.regions {
         let control_plane_price = control_plane_cost.get(&region).unwrap();
         let node_price = node_cost.get(&region).unwrap();
         let storage_price = storage_cost.get(&region).unwrap();
         let data_transfer_price = data_transfer_cost.get(&region).unwrap();
 
-        let total_cost = (control_plane_price * 730.0)
-            + (8.0 * storage_price)
-            + (node_price * node_count) * 730.0
-            + ((storage_price * storage_size_gb as f64) * node_count)
-            + (data_transfer_price * outbound_data_gb as f64);
+        let control_plane_monthly_price = ((control_plane_price * 730.0) * 100.0).round() / 100.0;
+        let control_plane_storage_price = (8.0 * storage_price * 100.0).round() / 100.0;
+        let node_monthly_price =
+            ((deployment_configuration.node_count * node_price * 730.0) * 100.0).round() / 100.0;
+        let node_storage_price = ((deployment_configuration.storage_size_gb
+            * storage_price
+            * deployment_configuration.node_count)
+            * 100.0)
+            .round()
+            / 100.0;
+        let data_transfer_price =
+            (data_transfer_price * deployment_configuration.outbound_data_gb as f64 * 100.0)
+                .round()
+                / 100.0;
+
+        let total_cost = control_plane_monthly_price
+            + control_plane_storage_price
+            + node_monthly_price
+            + node_storage_price
+            + data_transfer_price;
 
         // round to 2 dp
         let total_cost = (total_cost * 100.0).round() / 100.0;
 
-        total_deployment_cost.insert(region, total_cost);
+        let mut breakdown = IndexMap::new();
+
+        breakdown.insert(String::from("Control Plane"), control_plane_monthly_price);
+        breakdown.insert(
+            String::from("Control Plane Storage"),
+            control_plane_storage_price,
+        );
+
+        breakdown.insert(String::from("Instances"), node_monthly_price);
+        breakdown.insert(String::from("Storage"), node_storage_price);
+        breakdown.insert(String::from("Data Transfer"), data_transfer_price);
+        breakdown.insert(String::from("Total"), total_cost);
+
+        total_deployment_cost.insert(region, breakdown);
     }
 
     total_deployment_cost
 }
 
-pub async fn calculate_cheapest_deployment(regions: Vec<AwsRegion>) -> HashMap<AwsRegion, f64> {
-    calculate_deployment(regions, None, true, (1.0, 1.0), 8.0, 1.0, 0).await
+pub async fn calculate_cheapest_deployment(
+    regions: Vec<AwsRegion>,
+) -> HashMap<AwsRegion, IndexMap<String, f64>> {
+    calculate_deployment(DeploymentConfiguration {
+        regions,
+        control_plane_specs: None,
+        spot_control_plane: true,
+        node_specs: (1, 1.0),
+        storage_size_gb: 8.0,
+        node_count: 1.0,
+        outbound_data_gb: 0,
+    })
+    .await
 }
 
-pub async fn calculate_large_deployment(regions: Vec<AwsRegion>) -> HashMap<AwsRegion, f64> {
-    calculate_deployment(
-        regions,
-        Some((2.0, 4.0)),
-        false,
-        (4.0, 8.0),
-        50.0,
-        3.0,
-        1000,
-    )
+pub async fn calculate_large_deployment(
+    regions: Vec<AwsRegion>,
+) -> HashMap<AwsRegion, IndexMap<String, f64>> {
+    calculate_deployment(DeploymentConfiguration {
+        regions: regions,
+        control_plane_specs: Some((2, 4.0)),
+        spot_control_plane: false,
+        node_specs: (4, 8.0),
+        storage_size_gb: 50.0,
+        node_count: 3.0,
+        outbound_data_gb: 1000,
+    })
     .await
 }
