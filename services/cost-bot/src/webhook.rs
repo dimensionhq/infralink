@@ -1,17 +1,22 @@
-use std::{str::FromStr, time::Instant};
+use std::str::FromStr;
 
 use crate::{
-    cost, git,
+    cost, db, git, github,
     models::{events::GitHubEvent, push::Push},
 };
 use actix_web::{post, web, HttpRequest, Responder};
+use indexmap::IndexMap;
 use serde_json::Value;
+use sqlx::{Pool, Postgres};
 use types::config::InfrastructureConfiguration;
 
 #[post("/webhook")]
-pub async fn webhook(req: HttpRequest, body: web::Json<Value>) -> impl Responder {
-    let start = Instant::now();
+pub async fn webhook(
+    pool: web::Data<Pool<Postgres>>,
 
+    req: HttpRequest,
+    body: web::Json<Value>,
+) -> impl Responder {
     let builder = git2::build::RepoBuilder::new();
 
     let event_type = GitHubEvent::from_str(
@@ -33,14 +38,38 @@ pub async fn webhook(req: HttpRequest, body: web::Json<Value>) -> impl Responder
 
         let files = git::configuration_files(repo.to_string());
 
+        git::delete(repo.to_string());
+
+        let mut breakdowns: IndexMap<String, IndexMap<String, f64>> = IndexMap::new();
+
         for (_path, contents) in files {
             let config = InfrastructureConfiguration::from_str(&contents).unwrap();
 
             // next, parse the contents of the infra.toml file and analyse it.
-            cost::calculate_cost(config).await;
+            let breakdown = cost::calculate_cost(&config).await;
+
+            breakdowns.insert(config.app.name, breakdown);
         }
 
-        println!("{}", start.elapsed().as_secs_f32());
+        // fetch the previous breakdown
+        let previous_breakdown =
+            db::fetch_previous_breakdown(&pool, event.repository.id, &event.before)
+                .await
+                .unwrap();
+
+        // Output the breakdown as a comment on the commit
+        github::comment(
+            previous_breakdown,
+            &breakdowns,
+            &event.after,
+            &event.repository.full_name,
+        )
+        .await;
+
+        // Store the breakdown in the database
+        db::store_breakdown(&pool, event.repository.id, &event.after, breakdowns)
+            .await
+            .unwrap();
     }
 
     "ping"

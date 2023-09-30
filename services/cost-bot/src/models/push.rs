@@ -50,6 +50,9 @@ pub struct Author {
 
 #[derive(Debug, Deserialize)]
 pub struct Repository {
+    // repository id
+    pub id: i64,
+
     // full name of the repository
     pub full_name: String,
 }
