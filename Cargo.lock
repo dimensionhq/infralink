@@ -1371,6 +1371,7 @@ dependencies = [
  "inquire",
  "keyring",
  "linked-hash-map",
+ "math",
  "miette",
  "nixpacks",
  "once_cell",

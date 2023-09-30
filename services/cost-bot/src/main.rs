@@ -1,8 +1,8 @@
 pub mod api;
 pub mod cost;
+mod git;
 pub mod models;
 pub mod webhook;
-mod git;
 
 use actix_web::{App, HttpServer};
 

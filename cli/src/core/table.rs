@@ -17,7 +17,7 @@ pub async fn render_region_pricing(regions: LinkedHashMap<AwsRegion, RegionOptSt
 
     let mut regions_vec: Vec<(AwsRegion, RegionOptStatus)> = regions.into_iter().collect();
 
-    let small_deployment_prices = crate::core::math::calculate_cheapest_deployment(
+    let small_deployment_prices = math::calculate_cheapest_deployment(
         regions_vec
             .iter()
             .map(|(region, _)| region.clone())
@@ -25,7 +25,7 @@ pub async fn render_region_pricing(regions: LinkedHashMap<AwsRegion, RegionOptSt
     )
     .await;
 
-    let large_deployment_prices = crate::core::math::calculate_large_deployment(
+    let large_deployment_prices = math::calculate_large_deployment(
         regions_vec
             .iter()
             .map(|(region, _)| region.clone())
@@ -35,11 +35,11 @@ pub async fn render_region_pricing(regions: LinkedHashMap<AwsRegion, RegionOptSt
 
     // sort the regions by the lowest cost spot instance price
     regions_vec.sort_by(|(region1, _), (region2, _)| {
-        let price1 = small_deployment_prices.get(region1).unwrap();
-        let price2 = small_deployment_prices.get(region2).unwrap();
+        let price1 = small_deployment_prices.get(region1).unwrap()["Total"];
+        let price2 = small_deployment_prices.get(region2).unwrap()["Total"];
 
         price1
-            .partial_cmp(price2)
+            .partial_cmp(&price2)
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
@@ -47,9 +47,9 @@ pub async fn render_region_pricing(regions: LinkedHashMap<AwsRegion, RegionOptSt
         let display_name = region.display_name();
         let code = region.code();
 
-        let small_deployment_price = small_deployment_prices.get(region).unwrap();
+        let small_deployment_price = small_deployment_prices.get(region).unwrap()["Total"];
 
-        let large_deployment_price = large_deployment_prices.get(region).unwrap();
+        let large_deployment_price = large_deployment_prices.get(region).unwrap()["Total"];
 
         table.add_row(
             vec![

@@ -301,7 +301,7 @@ pub async fn calculate_large_deployment(
     regions: Vec<AwsRegion>,
 ) -> HashMap<AwsRegion, IndexMap<String, f64>> {
     calculate_deployment(DeploymentConfiguration {
-        regions: regions,
+        regions,
         control_plane_specs: Some((2, 4.0)),
         spot_control_plane: false,
         node_specs: (4, 8.0),

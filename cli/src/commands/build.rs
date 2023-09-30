@@ -67,10 +67,14 @@ pub async fn execute() -> Result<()> {
                 name: name.clone(),
                 cpu_quota: configuration
                     .build
+                    .as_ref()
+                    .unwrap()
                     .max_vcpu
                     .map(|max_vcpu| (max_vcpu * 100_000).to_string()),
                 memory: configuration
                     .build
+                    .as_ref()
+                    .unwrap()
                     .max_memory
                     .map(|max_memory| format!("{}m", max_memory)),
                 ..Default::default()

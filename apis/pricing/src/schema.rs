@@ -29,10 +29,9 @@ pub async fn extract_and_validate_key(
     };
 
     if bearer_token != std::env::var("BOT_API_TOKEN").unwrap()
-        && db::validate_api_key(&pool, &bearer_token)
+        && !db::validate_api_key(&pool, &bearer_token)
             .await
             .unwrap_or(false)
-            == false
     {
         return Err(anyhow::anyhow!("Invalid API key"));
     }

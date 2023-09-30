@@ -16,7 +16,7 @@ pub async fn graphql(
     request = request.data(pool.clone());
     request = request.data(req.headers().clone());
 
-    return schema.execute(request).await.into();
+    schema.execute(request).await.into()
 }
 
 pub async fn graphiql() -> HttpResponse {

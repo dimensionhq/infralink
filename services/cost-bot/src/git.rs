@@ -6,7 +6,7 @@ use std::{
 use git2::{build::RepoBuilder, FetchOptions, RemoteCallbacks};
 use walkdir::WalkDir;
 
-pub fn clone(repository_name: String, credentials: String, mut builder: RepoBuilder) {
+pub fn clone(repository_name: String, _credentials: String, mut builder: RepoBuilder) {
     let callbacks = RemoteCallbacks::new();
     let mut options = FetchOptions::new();
 
@@ -21,7 +21,7 @@ pub fn clone(repository_name: String, credentials: String, mut builder: RepoBuil
     builder
         .clone(
             &format!("https://github.com/{}.git", repository_name),
-            Path::new(&format!("./{}", repository_name.split("/").last().unwrap())),
+            Path::new(&format!("./{}", repository_name.split('/').last().unwrap())),
         )
         .unwrap();
 }
@@ -32,7 +32,7 @@ pub fn configuration_files(repository_name: String) -> HashMap<PathBuf, String> 
     // Search for all infra.toml files recursively using the walkdir crate
     let walker = WalkDir::new(Path::new(&format!(
         "./{}",
-        repository_name.split("/").last().unwrap()
+        repository_name.split('/').last().unwrap()
     )));
 
     for entry in walker.into_iter().filter_map(|e| e.ok()) {
