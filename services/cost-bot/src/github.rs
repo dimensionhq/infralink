@@ -105,7 +105,7 @@ pub async fn comment(
                       };
 
                       let change_column = if has_change_for_app {
-                          format!("| {}", change_str.unwrap_or_else(|| "".to_string()))
+                          format!("| {}", change_str.unwrap_or_default())
                       } else {
                           "".to_string()
                       };
