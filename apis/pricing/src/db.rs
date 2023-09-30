@@ -9,12 +9,38 @@ use crate::models::spot_response::SpotResponse;
 use crate::models::{on_demand_request::OnDemandRequest, spot_request::SpotRequest};
 use actix_web::web;
 use anyhow::Result;
-use sqlx::{Pool, Postgres, QueryBuilder};
+use sqlx::{FromRow, Pool, Postgres, QueryBuilder};
 
 pub async fn create_pool(database_url: &str) -> Pool<Postgres> {
     Pool::connect(database_url)
         .await
         .expect("Failed to create pool")
+}
+
+#[derive(Debug, FromRow)]
+#[allow(dead_code)]
+struct ApiKeyRow {
+    api_key: String,
+    is_active: bool,
+}
+
+pub async fn validate_api_key(
+    pool: &web::Data<Pool<Postgres>>,
+    input_api_key: &str,
+) -> Result<bool, sqlx::Error> {
+    let row: Option<ApiKeyRow> = sqlx::query_as(
+        "SELECT api_key, is_active FROM api_keys WHERE api_key = $1 AND is_active = true",
+    )
+    .bind(input_api_key)
+    .fetch_optional(&***pool)
+    .await?;
+
+    println!("{:?}", row);
+
+    match row {
+        Some(_) => Ok(true), // API key found and is active
+        None => Ok(false),   // API key not found or is not active
+    }
 }
 
 pub async fn fetch_on_demand_data(

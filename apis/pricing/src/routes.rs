@@ -1,6 +1,6 @@
 use super::schema::Query;
 
-use actix_web::{web, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse};
 use async_graphql::{http::GraphiQLSource, EmptyMutation, EmptySubscription, Schema};
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse};
 use sqlx::{Pool, Postgres};
@@ -8,12 +8,15 @@ use sqlx::{Pool, Postgres};
 pub async fn graphql(
     pool: web::Data<Pool<Postgres>>,
     schema: web::Data<Schema<Query, EmptyMutation, EmptySubscription>>,
-    request: GraphQLRequest,
+    req: HttpRequest,
+    gql: GraphQLRequest,
 ) -> GraphQLResponse {
-    let mut request = request.into_inner();
-    request = request.data(pool.clone());
+    let mut request = gql.into_inner();
 
-    schema.execute(request).await.into()
+    request = request.data(pool.clone());
+    request = request.data(req.headers().clone());
+
+    return schema.execute(request).await.into();
 }
 
 pub async fn graphiql() -> HttpResponse {
