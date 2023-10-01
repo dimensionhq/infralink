@@ -29,12 +29,12 @@ pub async fn write_comment_to_ref(comment: String, commit_ref: &str, repository_
     }
 
     let json: serde_json::Value = response.json().await.unwrap();
-    let comment_id = json["id"]
+    
+
+    json["id"]
         .as_u64()
         .ok_or("Failed to get comment ID")
-        .unwrap();
-
-    comment_id
+        .unwrap()
 }
 
 pub async fn comment(
