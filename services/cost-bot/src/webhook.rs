@@ -30,46 +30,61 @@ pub async fn webhook(
 
     let payload = body.into_inner();
 
-    if let GitHubEvent::Push = event_type {
-        let event: Push = serde_json::from_value(payload).unwrap();
-        let repo = &event.repository.full_name;
+    match event_type {
+        GitHubEvent::Push => {
+            let event: Push = serde_json::from_value(payload).unwrap();
+            let repo = &event.repository.full_name;
 
-        git::clone(repo.to_string(), String::new(), builder);
+            git::clone(repo.to_string(), String::new(), builder);
 
-        let files = git::configuration_files(repo.to_string());
+            let files = git::configuration_files(repo.to_string());
 
-        git::delete(repo.to_string());
+            git::delete(repo.to_string());
 
-        let mut breakdowns: IndexMap<String, IndexMap<String, f64>> = IndexMap::new();
+            let mut breakdowns: IndexMap<String, IndexMap<String, f64>> = IndexMap::new();
 
-        for (_path, contents) in files {
-            let config = InfrastructureConfiguration::from_str(&contents).unwrap();
+            for (_path, contents) in files {
+                let config = InfrastructureConfiguration::from_str(&contents).unwrap();
 
-            // next, parse the contents of the infra.toml file and analyse it.
-            let breakdown = cost::calculate_cost(&config).await;
+                // next, parse the contents of the infra.toml file and analyse it.
+                let breakdown = cost::calculate_cost(&config).await;
 
-            breakdowns.insert(config.app.name, breakdown);
-        }
+                breakdowns.insert(config.app.name, breakdown);
+            }
 
-        // fetch the previous breakdown
-        let previous_breakdown =
-            db::fetch_previous_breakdown(&pool, event.repository.id, &event.before)
+            // fetch the previous breakdown
+            let previous_breakdown =
+                db::fetch_previous_breakdown(&pool, event.repository.id, &event.before)
+                    .await
+                    .unwrap();
+
+            // Output the breakdown as a comment on the commit
+            let id = github::comment(
+                previous_breakdown,
+                &breakdowns,
+                &event.after,
+                &event.repository.full_name,
+            )
+            .await;
+
+            // Mark the check run for the commit as successful
+            github::mark_check_run(
+                &event.repository.full_name,
+                &event.after,
+                "success",
+                "Cost Analysis",
+                "Cost breakdown",
+                id,
+            )
+            .await;
+
+            // Store the breakdown in the database
+            db::store_breakdown(&pool, event.repository.id, &event.after, breakdowns)
                 .await
                 .unwrap();
+        }
 
-        // Output the breakdown as a comment on the commit
-        github::comment(
-            previous_breakdown,
-            &breakdowns,
-            &event.after,
-            &event.repository.full_name,
-        )
-        .await;
-
-        // Store the breakdown in the database
-        db::store_breakdown(&pool, event.repository.id, &event.after, breakdowns)
-            .await
-            .unwrap();
+        _ => {}
     }
 
     "ping"

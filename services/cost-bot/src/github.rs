@@ -1,7 +1,8 @@
 use indexmap::IndexMap;
 use reqwest::header::USER_AGENT;
+use serde_json::json;
 
-pub async fn write_comment_to_ref(comment: String, commit_ref: &str, repository_name: &str) {
+pub async fn write_comment_to_ref(comment: String, commit_ref: &str, repository_name: &str) -> u64 {
     let token = std::env::var("GITHUB_TOKEN").expect("GITHUB_TOKEN not set");
     let parts: Vec<&str> = repository_name.split('/').collect();
     if parts.len() != 2 {
@@ -26,6 +27,14 @@ pub async fn write_comment_to_ref(comment: String, commit_ref: &str, repository_
     if response.status() != 201 {
         panic!("Failed to write comment to commit");
     }
+
+    let json: serde_json::Value = response.json().await.unwrap();
+    let comment_id = json["id"]
+        .as_u64()
+        .ok_or("Failed to get comment ID")
+        .unwrap();
+
+    comment_id
 }
 
 pub async fn comment(
@@ -33,7 +42,7 @@ pub async fn comment(
     breakdowns: &IndexMap<String, IndexMap<String, f64>>,
     commit_ref: &str,
     repository_name: &str,
-) {
+) -> u64 {
     // Calculate the total monthly cost for all apps
     let total_cost: f64 = breakdowns
         .iter()
@@ -105,7 +114,7 @@ pub async fn comment(
                       };
 
                       let change_column = if has_change_for_app {
-                          format!("| {}", change_str.unwrap_or_else(|| "".to_string()))
+                          format!("| {}", change_str.unwrap_or_default())
                       } else {
                           "".to_string()
                       };
@@ -145,10 +154,54 @@ pub async fn comment(
     let full_markdown = format!("{}\n\n{}", header, markdown);
 
     // Write the markdown to a comment on the commit
-    write_comment_to_ref(full_markdown, commit_ref, repository_name).await;
+    let id = write_comment_to_ref(full_markdown, commit_ref, repository_name).await;
 
     println!(
         "Successfully completed cost analysis for {} @ {}",
         repository_name, commit_ref
     );
+
+    id
+}
+
+pub async fn mark_check_run(
+    repository_name: &str,
+    commit_ref: &str,
+    status: &str,
+    title: &str,
+    summary: &str,
+    comment_id: u64,
+) {
+    let token = std::env::var("GITHUB_TOKEN").expect("GITHUB_TOKEN not set");
+    let client = reqwest::Client::new();
+
+    let url = format!(
+        "https://api.github.com/repos/{}/check-runs",
+        repository_name
+    );
+
+    let body = json!({
+        "name": title,
+        "head_sha": commit_ref,
+        "status": "completed",
+        "conclusion": status,
+        "details_url": format!("https://github.com/{}/commit/{}#commitcomment-{}", repository_name, commit_ref, comment_id),
+        "output": {
+            "title": title,
+            "summary": summary
+        }
+    });
+
+    let response = client
+        .post(&url)
+        .header(USER_AGENT, "Cost-Bot")
+        .header("Authorization", format!("Bearer {}", token))
+        .json(&body)
+        .send()
+        .await
+        .expect("Failed to mark check run");
+
+    if response.status() != 201 {
+        panic!("Failed to mark check run");
+    }
 }

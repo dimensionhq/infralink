@@ -19,7 +19,7 @@ math = { path = "../../math" }
 types = { path = "../../types" }
 git2 = "0.18.1"
 walkdir = "2.4.0"
-indexmap = "2.0.2"
+indexmap = { version = "2.0.2", features = ["serde"] }
 sqlx = { version = "0.7.1", features = [
   "postgres",
   "runtime-tokio",

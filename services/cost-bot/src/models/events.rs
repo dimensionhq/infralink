@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 pub enum GitHubEvent {
     Push,
+    PullRequestCreated,
     Ping,
 }
 

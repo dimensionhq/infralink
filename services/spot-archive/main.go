@@ -111,48 +111,35 @@ func spotPricingForForecast(conn *pgx.Conn, region string, instanceTypes []strin
 		return err
 	}
 
-	// Fetch the latest existing prices for comparison
-	rows, err := tx.Query(ctx, `
-	SELECT instance_type, availability_zone, MAX(price_per_hour)
-	FROM spot_archive 
-	WHERE region = $1
-	GROUP BY instance_type, availability_zone`, region)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	existingPrices := make(map[string]map[string]float64)
-
-	// Populate the existingPrices map
-	for rows.Next() {
-		var instanceType, availabilityZone string
-		var price float64
-		err := rows.Scan(&instanceType, &availabilityZone, &price)
-		if err != nil {
-			return err
-		}
-		if _, ok := existingPrices[instanceType]; !ok {
-			existingPrices[instanceType] = make(map[string]float64)
-		}
-		existingPrices[instanceType][availabilityZone] = price
-	}
-
+	// Prepare a slice to hold values to be inserted
 	valuesToInsert := []string{}
 
+	// Iterate over each instance type to prepare the values to be inserted
 	for _, instanceType := range instanceTypes {
 		if spotInstancePrices, ok := prices[instanceType]; ok {
 			for _, spotInstancePrice := range spotInstancePrices {
-				if dbPrice, ok := existingPrices[instanceType][spotInstancePrice.AvailabilityZone]; !ok || dbPrice != spotInstancePrice.Price {
-					valueStr := fmt.Sprintf("('%s', '%s', '%s', %f, NOW())", region, spotInstancePrice.AvailabilityZone, instanceType, spotInstancePrice.Price)
+				// Check if this specific entry already exists with the same price
+				var existingPrice float64
+				err := tx.QueryRow(ctx, `
+				SELECT price_per_hour FROM spot_archive
+				WHERE region = $1 AND availability_zone = $2 AND instance_type = $3
+				ORDER BY timestamp DESC LIMIT 1`,
+					region, spotInstancePrice.AvailabilityZone, instanceType).Scan(&existingPrice)
 
+				// If the entry does not exist or the price is different, prepare it for insertion
+				if err == pgx.ErrNoRows || (err == nil && existingPrice != spotInstancePrice.Price) {
+					valueStr := fmt.Sprintf("('%s', '%s', '%s', %f, NOW())", region, spotInstancePrice.AvailabilityZone, instanceType, spotInstancePrice.Price)
 					valuesToInsert = append(valuesToInsert, valueStr)
+				} else if err != nil {
+					return err
 				}
 			}
 		}
 	}
 
+	// If there are new or changed prices, insert them
 	if len(valuesToInsert) > 0 {
+		fmt.Printf("Writing %d changed prices for %s.\n", len(valuesToInsert), region)
 		insertQuery := fmt.Sprintf("INSERT INTO spot_archive (region, availability_zone, instance_type, price_per_hour, timestamp) VALUES %s",
 			strings.Join(valuesToInsert, ", "))
 		_, err = tx.Exec(ctx, insertQuery)
