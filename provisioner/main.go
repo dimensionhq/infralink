@@ -16,28 +16,13 @@ import (
 	"github.com/spf13/viper"
 )
 
-func getString(key string) string {
-	if !viper.IsSet(key) {
-		log.Fatalf("%s not set", key)
-	}
-
-	return viper.GetString(key)
-}
-
-func getBool(key string) bool {
-	if !viper.IsSet(key) {
-		log.Fatalf("%s not set", key)
-	}
-
-	return viper.GetBool(key)
-}
-
 func main() {
 	pflag.String("name", "infralink", "name for some AWS resources")
-	pflag.String("instance", "t4g.micro", "AWS EC2 instance type")
-	pflag.String("ami", "ami-0b5801d081fa3a76c", "AWS AMI ID")
+	pflag.String("instance", "t3a.micro", "AWS EC2 instance type") //TODO - find a way to make AMI with packer for ARM
+	pflag.String("ami", "ami-09ca9cb836d95b14c", "AWS AMI ID")
 	pflag.String("user", "ubuntu", "AWS EC2 system user")
 	pflag.String("key", "/path/to/your/id_rsa.pub", "SSH public key path")
+	pflag.String("config", "config.toml", "config file path")
 	pflag.Bool("verbose", false, "toggle verbosity (warning: outputs sensitive information)")
 
 	//TODO - find a way to get rid of the glog CLI flags
@@ -56,22 +41,26 @@ func main() {
 	viper.SetEnvKeyReplacer(replacer)
 
 	//File
-	viper.SetConfigFile("config.toml")
-	err = viper.ReadInConfig()
-	if err != nil {
-		log.Fatal(err)
+	config := viper.GetString("config")
+	_, err = os.ReadFile(config)
+	if err == nil {
+		viper.SetConfigFile(config)
+		err = viper.ReadInConfig()
+		if err != nil {
+			log.Fatal(err)
+		}
+		viper.OnConfigChange(func(e fsnotify.Event) {
+			fmt.Println("Config file changed:", e.Name)
+		})
+		viper.WatchConfig()
 	}
-	viper.OnConfigChange(func(e fsnotify.Event) {
-		fmt.Println("Config file changed:", e.Name)
-	})
-	viper.WatchConfig()
 
-	name := getString("name")
-	ami := getString("ami")
-	instance := getString("instance")
-	user := getString("user")
-	key := getString("key")
-	verbose := getBool("verbose")
+	name := viper.GetString("name")
+	ami := viper.GetString("ami")
+	instance := viper.GetString("instance")
+	user := viper.GetString("user")
+	key := viper.GetString("key")
+	verbose := viper.GetBool("verbose")
 
 	common := Common{
 		name:     name,
@@ -85,7 +74,7 @@ func main() {
 		role: "master",
 	}
 	worker := Node{
-		role: "master",
+		role: "worker",
 	}
 
 	ctx := context.Background()
@@ -175,6 +164,13 @@ func main() {
 	password := fmt.Sprintf("%s", secondaryUpResult.Outputs["password"].Value)
 	token := fmt.Sprintf("%s", secondaryUpResult.Outputs["token"].Value)
 
+	viper.Set("repository", repository)
+	err = viper.WriteConfigAs(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//TODO - must be moved to another bin or behind another flag...
 	err = pushImage(repository, username, password, token)
 	if err != nil {
 		log.Fatal(err)

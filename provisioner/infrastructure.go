@@ -80,6 +80,14 @@ func upsertSecondaryStack(ctx *pulumi.Context, common Common, master Node, worke
 					pulumi.String("0.0.0.0/0"),
 				},
 			},
+			&ec2.SecurityGroupIngressArgs{
+				FromPort: pulumi.Int(6443),
+				ToPort:   pulumi.Int(6443),
+				Protocol: pulumi.String("TCP"),
+				CidrBlocks: pulumi.StringArray{
+					pulumi.String("0.0.0.0/0"),
+				},
+			},
 		},
 		Egress: ec2.SecurityGroupEgressArray{
 			&ec2.SecurityGroupEgressArgs{
@@ -156,7 +164,7 @@ func upsertSecondaryStack(ctx *pulumi.Context, common Common, master Node, worke
 		SubnetId:     subnetMaster.ID(),
 	})
 
-	masterInstance, err := ec2.NewInstance(ctx, "instanceType-master", &ec2.InstanceArgs{
+	masterInstance, err := ec2.NewInstance(ctx, "master", &ec2.InstanceArgs{
 		KeyName:      keypair.KeyName,
 		Ami:          pulumi.String(common.ami),
 		InstanceType: pulumi.String(common.instance),
@@ -201,7 +209,7 @@ func upsertSecondaryStack(ctx *pulumi.Context, common Common, master Node, worke
 		SubnetId:     subnetWorker.ID(),
 	})
 
-	workerInstance, err := ec2.NewInstance(ctx, "instanceType-worker", &ec2.InstanceArgs{
+	workerInstance, err := ec2.NewInstance(ctx, "worker", &ec2.InstanceArgs{
 		KeyName:      keypair.KeyName,
 		Ami:          pulumi.String(common.ami),
 		InstanceType: pulumi.String(common.instance),
@@ -237,7 +245,6 @@ func (n *Node) setupK0s(ctx context.Context, common Common) error {
 
 	playbookCmd := &playbook.AnsiblePlaybookCmd{
 		Playbooks: []string{
-			"assets/playbooks/install.yaml",
 			fmt.Sprintf("assets/playbooks/%s.yaml", n.role),
 		},
 		ConnectionOptions:          ansiblePlaybookConnectionOptions,
