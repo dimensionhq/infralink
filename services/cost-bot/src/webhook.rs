@@ -57,7 +57,7 @@ pub async fn listener(
                     .unwrap();
 
             // Output the breakdown as a comment on the commit
-            let id = github::comment_on_commit(
+            let _id = github::comment_on_commit(
                 previous_breakdown,
                 &breakdowns,
                 &event.after,
@@ -128,7 +128,6 @@ pub async fn listener(
                     .await;
 
                     // todo: mark checks on the pull request
-                    
 
                     // this is based on the cost guidelines
                 }
