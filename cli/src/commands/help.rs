@@ -1,7 +1,8 @@
+use constants::help::HELP_COMMAND;
 use miette::Result;
 
 pub async fn execute() -> Result<()> {
-    unimplemented!("Help command");
+    println!("{}", HELP_COMMAND.as_str());
 
-    // Ok(())
+    Ok(())
 }

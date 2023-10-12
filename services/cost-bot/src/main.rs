@@ -20,7 +20,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(Data::new(pool.clone()))
-            .service(webhook::webhook)
+            .service(webhook::listener)
     })
     .bind(("127.0.0.1", 8080))
     .unwrap()

@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 pub enum GitHubEvent {
     Push,
-    PullRequestCreated,
+    PullRequest,
     Ping,
 }
 
@@ -13,6 +13,7 @@ impl FromStr for GitHubEvent {
         match s {
             "push" => Ok(GitHubEvent::Push),
             "ping" => Ok(GitHubEvent::Ping),
+            "pull_request" => Ok(GitHubEvent::PullRequest),
             _ => Err(()),
         }
     }

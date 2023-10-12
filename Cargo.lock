@@ -1357,7 +1357,7 @@ checksum = "cd7cc57abe963c6d3b9d8be5b06ba7c8957a930305ca90304f24ef040aa6f961"
 
 [[package]]
 name = "cli"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "aws-config",
  "aws-credential-types",
@@ -1447,6 +1447,7 @@ checksum = "28c122c3980598d243d63d9a704629a2d748d101f278052ff068be5a4423ab6f"
 name = "constants"
 version = "0.1.0"
 dependencies = [
+ "colored",
  "inquire",
  "once_cell",
 ]

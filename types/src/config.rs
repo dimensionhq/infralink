@@ -262,3 +262,7 @@ impl InternalAWSConfiguration {
         }
     }
 }
+
+pub struct GlobalConfiguration {
+    pub api_key: String,
+}

@@ -11,11 +11,15 @@ use types::{
 };
 
 pub async fn execute() -> Result<()> {
+    // check if the user is logged in
+    prompt::remain_not_logged_in()?;
+
     println!(
         "{}",
         "👋 Welcome! Let's get started by setting up your infrastructure configuration."
             .bright_green()
     );
+
     // get the app name - can default to current directory name
     let app_name = prompt::app_name()?;
 
@@ -86,6 +90,12 @@ pub async fn execute() -> Result<()> {
         .with_region(region)
         .build()
         .save::<&str>(None);
+
+    println!(
+        "🎉 You're now ready to deploy your app. Run {} {} to start.",
+        "infra".bright_cyan(),
+        "deploy".bright_blue()
+    );
 
     Ok(())
 }

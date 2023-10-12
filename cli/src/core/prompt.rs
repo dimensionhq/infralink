@@ -1,7 +1,8 @@
 use std::str::FromStr;
 
 use aws_sdk_account::types::RegionOptStatus;
-use inquire::{Password, PasswordDisplayMode, Select, Text};
+use colored::Colorize;
+use inquire::{Confirm, Password, PasswordDisplayMode, Select, Text};
 use keyring::Entry;
 use linked_hash_map::LinkedHashMap;
 use miette::{IntoDiagnostic, Result};
@@ -98,4 +99,35 @@ pub fn region(regions: LinkedHashMap<AwsRegion, RegionOptStatus>) -> Result<Regi
     .unwrap();
 
     Ok(Region::Aws(aws_region))
+}
+
+pub fn remain_not_logged_in() -> Result<bool> {
+    let benefits = format!(
+        r#"You're not currently logged in to Infralink Cloud. Infralink Cloud comes with the following benefits:
+
+- 🖥️  Dashboard
+- 🔗 Automatic deploys from GitHub
+- 📊 Usage analytics 
+- 🔍 Cost estimations
+- 📝 Detailed logging and monitoring
+- 💵 Predictive analytics with up-to 200% savings
+- 🚀 Up-to 10x faster deployments with more powerful machines and collaborative caching
+- 🙋 Support from K8s experts
+- 🛡️  Advanced security compliance
+
+Get started for free with {} {}.
+"#,
+        "infra".bright_cyan(),
+        "login".bright_blue()
+    );
+
+    println!("{benefits}");
+
+    // Ask the user if they want to login
+    let login = Confirm::new("Would you like to login?")
+        .with_render_config(*RENDER_CONFIG)
+        .prompt()
+        .unwrap();
+
+    Ok(login)
 }

@@ -2,16 +2,25 @@ use indexmap::IndexMap;
 use reqwest::header::USER_AGENT;
 use serde_json::json;
 
-pub async fn write_comment_to_ref(comment: String, commit_ref: &str, repository_name: &str) -> u64 {
+// Function to write a comment to a specific commit reference
+pub async fn write_comment_to_commit_ref(
+    comment: String,
+    commit_ref: &str,
+    repository_name: &str,
+) -> u64 {
+    // Fetch the GitHub token from the environment variables
     let token = std::env::var("GITHUB_TOKEN").expect("GITHUB_TOKEN not set");
+    // Split the repository name into owner and repo
     let parts: Vec<&str> = repository_name.split('/').collect();
     if parts.len() != 2 {
         eprintln!("Invalid repository name");
     }
     let (owner, repo) = (parts[0], parts[1]);
 
+    // Create a new client
     let client = reqwest::Client::new();
 
+    // Send a POST request to the GitHub API to write a comment to the commit
     let response = client
         .post(&format!(
             "https://api.github.com/repos/{}/{}/commits/{}/comments",
@@ -24,25 +33,70 @@ pub async fn write_comment_to_ref(comment: String, commit_ref: &str, repository_
         .await
         .expect("Failed to send request");
 
+    // Check the response status
     if response.status() != 201 {
         panic!("Failed to write comment to commit");
     }
 
+    // Parse the response JSON
     let json: serde_json::Value = response.json().await.unwrap();
-    let comment_id = json["id"]
+
+    // Return the comment ID
+    json["id"]
         .as_u64()
         .ok_or("Failed to get comment ID")
-        .unwrap();
-
-    comment_id
+        .unwrap()
 }
 
-pub async fn comment(
-    previous_breakdown: Option<IndexMap<String, IndexMap<String, f64>>>,
-    breakdowns: &IndexMap<String, IndexMap<String, f64>>,
-    commit_ref: &str,
+// Function to write a comment to a pull request
+pub async fn write_comment_to_pull_request(
+    comment: String,
+    pull_request_number: u64,
     repository_name: &str,
 ) -> u64 {
+    // Fetch the GitHub token from the environment variables
+    let token = std::env::var("GITHUB_TOKEN").expect("GITHUB_TOKEN not set");
+    // Split the repository name into owner and repo
+    let parts: Vec<&str> = repository_name.split('/').collect();
+
+    let (owner, repo) = (parts[0], parts[1]);
+
+    // Create a new client
+    let client = reqwest::Client::new();
+
+    // Send a POST request to the GitHub API to write a comment to the pull request
+    let response = client
+        .post(&format!(
+            "https://api.github.com/repos/{}/{}/issues/{}/comments", // notice the change from "pulls" to "issues"
+            owner, repo, pull_request_number
+        ))
+        .header("User-Agent", "Infralink Cost Bot")
+        .bearer_auth(token)
+        .json(&serde_json::json!({ "body": comment }))
+        .send()
+        .await
+        .expect("Failed to send request");
+
+    // Check the response status
+    if response.status() != 201 {
+        panic!("Failed to write comment to pull request");
+    }
+
+    // Parse the response JSON
+    let json: serde_json::Value = response.json().await.unwrap();
+
+    // Return the comment ID
+    json["id"]
+        .as_u64()
+        .ok_or("Failed to get comment ID")
+        .unwrap()
+}
+
+// Function to generate markdown for the cost breakdown
+fn generate_markdown(
+    previous_breakdown: Option<IndexMap<String, IndexMap<String, f64>>>,
+    breakdowns: &IndexMap<String, IndexMap<String, f64>>,
+) -> String {
     // Calculate the total monthly cost for all apps
     let total_cost: f64 = breakdowns
         .iter()
@@ -151,19 +205,57 @@ pub async fn comment(
       .collect::<Vec<_>>()
       .join("\n\n");
 
-    let full_markdown = format!("{}\n\n{}", header, markdown);
+    format!("{}\n\n{}", header, markdown)
+}
+
+// Function to comment on a commit with the cost breakdown
+pub async fn comment_on_commit(
+    previous_breakdown: Option<IndexMap<String, IndexMap<String, f64>>>,
+    breakdowns: &IndexMap<String, IndexMap<String, f64>>,
+    commit_ref: &str,
+    repository_name: &str,
+) -> u64 {
+    // Generate the markdown for the cost breakdown
+    let full_markdown = generate_markdown(previous_breakdown, breakdowns);
 
     // Write the markdown to a comment on the commit
-    let id = write_comment_to_ref(full_markdown, commit_ref, repository_name).await;
+    let id = write_comment_to_commit_ref(full_markdown, commit_ref, repository_name).await;
 
+    // Print a success message
     println!(
         "Successfully completed cost analysis for {} @ {}",
         repository_name, commit_ref
     );
 
+    // Return the comment ID
     id
 }
 
+// Function to comment on a pull request with the cost breakdown
+pub async fn comment_on_pull_request(
+    previous_breakdown: Option<IndexMap<String, IndexMap<String, f64>>>,
+    breakdowns: &IndexMap<String, IndexMap<String, f64>>,
+    pull_request_number: u64,
+    repository_name: &str,
+) -> u64 {
+    // Generate the markdown for the cost breakdown
+    let full_markdown = generate_markdown(previous_breakdown, breakdowns);
+
+    // Write the markdown to a comment on the pull request
+    let id =
+        write_comment_to_pull_request(full_markdown, pull_request_number, repository_name).await;
+
+    // Print a success message
+    println!(
+        "Successfully completed cost analysis for {} @ {}",
+        repository_name, pull_request_number
+    );
+
+    // Return the comment ID
+    id
+}
+
+// Function to mark a check run
 pub async fn mark_check_run(
     repository_name: &str,
     commit_ref: &str,
@@ -172,14 +264,18 @@ pub async fn mark_check_run(
     summary: &str,
     comment_id: u64,
 ) {
+    // Fetch the GitHub token from the environment variables
     let token = std::env::var("GITHUB_TOKEN").expect("GITHUB_TOKEN not set");
+    // Create a new client
     let client = reqwest::Client::new();
 
+    // Define the URL for the check run
     let url = format!(
         "https://api.github.com/repos/{}/check-runs",
         repository_name
     );
 
+    // Define the body of the request
     let body = json!({
         "name": title,
         "head_sha": commit_ref,
@@ -192,6 +288,7 @@ pub async fn mark_check_run(
         }
     });
 
+    // Send a POST request to the GitHub API to mark the check run
     let response = client
         .post(&url)
         .header(USER_AGENT, "Cost-Bot")
@@ -201,6 +298,7 @@ pub async fn mark_check_run(
         .await
         .expect("Failed to mark check run");
 
+    // Check the response status
     if response.status() != 201 {
         panic!("Failed to mark check run");
     }

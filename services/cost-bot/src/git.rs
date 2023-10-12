@@ -1,10 +1,21 @@
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 use git2::{build::RepoBuilder, FetchOptions, RemoteCallbacks};
 use indexmap::IndexMap;
+use types::config::InfrastructureConfiguration;
 use walkdir::WalkDir;
 
-pub fn clone(repository_name: String, _credentials: String, mut builder: RepoBuilder) {
+use crate::cost;
+
+pub fn clone(
+    repository_name: String,
+    _credentials: String,
+    specific_ref: String,
+    mut builder: RepoBuilder,
+) {
     let callbacks = RemoteCallbacks::new();
     let mut options = FetchOptions::new();
 
@@ -16,11 +27,22 @@ pub fn clone(repository_name: String, _credentials: String, mut builder: RepoBui
 
     builder.fetch_options(options);
 
-    builder
-        .clone(
-            &format!("https://github.com/{}.git", repository_name),
-            Path::new(&format!("./{}", repository_name.split('/').last().unwrap())),
-        )
+    // Construct the URL and local path
+    let url = format!("https://github.com/{}.git", repository_name);
+    let local_path = format!("./{}", repository_name.split('/').last().unwrap());
+
+    // Clone the repository to a specific path
+    let repo = builder.clone(&url, Path::new(&local_path)).unwrap();
+
+    // Checkout to the specific ref
+    let object = repo.revparse_single(&specific_ref).unwrap();
+    let mut checkout_opts = git2::build::CheckoutBuilder::new();
+    checkout_opts.force();
+    repo.checkout_tree(&object, Some(&mut checkout_opts))
+        .unwrap();
+
+    // Set HEAD to point to our specific ref
+    repo.set_head(&format!("refs/heads/{}", specific_ref))
         .unwrap();
 }
 
@@ -62,4 +84,21 @@ pub fn configuration_files(repository_name: String) -> IndexMap<PathBuf, String>
     files = file_vec.into_iter().collect();
 
     files
+}
+
+pub async fn cost_breakdowns(
+    files: IndexMap<PathBuf, String>,
+) -> IndexMap<String, IndexMap<String, f64>> {
+    let mut breakdowns: IndexMap<String, IndexMap<String, f64>> = IndexMap::new();
+
+    for (_path, contents) in files {
+        let config = InfrastructureConfiguration::from_str(&contents).unwrap();
+
+        // next, parse the contents of the infra.toml file and analyse it.
+        let breakdown = cost::calculate_cost(&config).await;
+
+        breakdowns.insert(config.app.name, breakdown);
+    }
+
+    breakdowns
 }
