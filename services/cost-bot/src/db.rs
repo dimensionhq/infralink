@@ -9,6 +9,24 @@ pub async fn create_pool(database_url: &str) -> PgPool {
 use serde_json::Value;
 use sqlx::{Error, PgPool, Row};
 
+pub async fn fetch_repository_cost_limits(
+    pool: &PgPool,
+    repository_id: i64,
+) -> Result<IndexMap<String, f64>, Error> {
+    let row = sqlx::query(
+        "SELECT cost_limit FROM cost_limits WHERE repository_id = $1 ORDER BY cost_limit DESC",
+    )
+    .bind(repository_id)
+    .fetch_one(pool)
+    .await?;
+
+    let cost_limit: Value = row.get("cost_limit");
+
+    let parsed: IndexMap<String, f64> = serde_json::from_value(cost_limit).unwrap();
+
+    Ok(parsed)
+}
+
 pub async fn store_breakdown(
     pool: &PgPool,
     repository_id: i64,
@@ -35,6 +53,20 @@ pub async fn store_breakdown(
     .await?;
 
     // Return success
+    Ok(())
+}
+
+pub async fn remove_breakdown(
+    pool: &PgPool,
+    repository_id: i64,
+    commit_ref: &str,
+) -> Result<(), Error> {
+    sqlx::query("DELETE FROM cost_runs WHERE repository_id = $1 AND commit_ref = $2")
+        .bind(repository_id)
+        .bind(commit_ref)
+        .execute(pool)
+        .await?;
+
     Ok(())
 }
 

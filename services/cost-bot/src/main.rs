@@ -13,13 +13,14 @@ async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
 
     // Connect to the database
-    // Database connection
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let pool = db::create_pool(&database_url).await;
+    let client = reqwest::Client::builder().use_rustls_tls().build().unwrap();
 
     HttpServer::new(move || {
         App::new()
             .app_data(Data::new(pool.clone()))
+            .app_data(Data::new(client.clone()))
             .service(webhook::listener)
     })
     .bind(("127.0.0.1", 8080))

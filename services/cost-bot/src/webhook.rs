@@ -13,6 +13,7 @@ use types::config::InfrastructureConfiguration;
 #[post("/webhook")]
 pub async fn listener(
     pool: web::Data<Pool<Postgres>>,
+    client: web::Data<reqwest::Client>,
     req: HttpRequest,
     body: web::Json<Value>,
 ) -> impl Responder {
@@ -57,7 +58,8 @@ pub async fn listener(
                     .unwrap();
 
             // Output the breakdown as a comment on the commit
-            let _id = github::comment_on_commit(
+            let id = github::comment_on_commit(
+                client,
                 previous_breakdown,
                 &breakdowns,
                 &event.after,
@@ -65,19 +67,54 @@ pub async fn listener(
             )
             .await;
 
-            // Mark the check run for the commit as successful
-            // github::mark_check_run(
-            //     &event.repository.full_name,
-            //     &event.after,
-            //     "success",
-            //     "Cost Analysis",
-            //     "Cost breakdown",
-            //     id,
-            // )
-            // .await;
+            // cost limits
+            let limits = db::fetch_repository_cost_limits(&pool, event.repository.id)
+                .await
+                .unwrap();
+
+            let mut success = true;
+
+            // Check this against our threshold
+            for (app_name, costs) in breakdowns.iter() {
+                if let Some(limit) = limits.get(app_name) {
+                    let total_cost = costs.values().sum::<f64>();
+
+                    if total_cost > *limit {
+                        success = false;
+
+                        github::mark_check_run(
+                            &event.repository.full_name,
+                            &event.after,
+                            "failure",
+                            "Cost Analysis",
+                            format!("Cost for {} above {} limit", app_name, limit,).as_str(),
+                            id,
+                        )
+                        .await
+                    }
+                }
+            }
+
+            if success {
+                // Mark the check run for the commit as successful
+                // github::mark_check_run(
+                //     &event.repository.full_name,
+                //     &event.after,
+                //     "success",
+                //     "Cost Analysis",
+                //     "Cost breakdown",
+                //     id,
+                // )
+                // .await;
+            }
 
             // Store the breakdown in the database
             db::store_breakdown(&pool, event.repository.id, &event.after, breakdowns)
+                .await
+                .unwrap();
+
+            // remove the previous breakdown
+            db::remove_breakdown(&pool, event.repository.id, &event.before)
                 .await
                 .unwrap();
         }
@@ -128,8 +165,6 @@ pub async fn listener(
                     .await;
 
                     // todo: mark checks on the pull request
-
-                    // this is based on the cost guidelines
                 }
                 &_ => {}
             }

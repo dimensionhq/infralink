@@ -1,24 +1,25 @@
 use indexmap::IndexMap;
-use reqwest::header::USER_AGENT;
+use reqwest::{header::USER_AGENT, Client};
 use serde_json::json;
 
 // Function to write a comment to a specific commit reference
 pub async fn write_comment_to_commit_ref(
+    client: actix_web::web::Data<Client>,
     comment: String,
     commit_ref: &str,
     repository_name: &str,
 ) -> u64 {
     // Fetch the GitHub token from the environment variables
     let token = std::env::var("GITHUB_TOKEN").expect("GITHUB_TOKEN not set");
+
     // Split the repository name into owner and repo
     let parts: Vec<&str> = repository_name.split('/').collect();
+
     if parts.len() != 2 {
         eprintln!("Invalid repository name");
     }
-    let (owner, repo) = (parts[0], parts[1]);
 
-    // Create a new client
-    let client = reqwest::Client::new();
+    let (owner, repo) = (parts[0], parts[1]);
 
     // Send a POST request to the GitHub API to write a comment to the commit
     let response = client
@@ -210,6 +211,7 @@ fn generate_markdown(
 
 // Function to comment on a commit with the cost breakdown
 pub async fn comment_on_commit(
+    client: actix_web::web::Data<Client>,
     previous_breakdown: Option<IndexMap<String, IndexMap<String, f64>>>,
     breakdowns: &IndexMap<String, IndexMap<String, f64>>,
     commit_ref: &str,
@@ -219,7 +221,7 @@ pub async fn comment_on_commit(
     let full_markdown = generate_markdown(previous_breakdown, breakdowns);
 
     // Write the markdown to a comment on the commit
-    let id = write_comment_to_commit_ref(full_markdown, commit_ref, repository_name).await;
+    let id = write_comment_to_commit_ref(client, full_markdown, commit_ref, repository_name).await;
 
     // Print a success message
     println!(
