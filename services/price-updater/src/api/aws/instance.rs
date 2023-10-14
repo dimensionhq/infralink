@@ -76,7 +76,7 @@ pub async fn update_spot_pricing_for_region(
 
         latest_prices
             .entry(az)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(instance_price);
     }
 
