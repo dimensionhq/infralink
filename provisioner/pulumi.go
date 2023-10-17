@@ -1,12 +1,8 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"os"
 
-	"github.com/apenella/go-ansible/pkg/options"
-	"github.com/apenella/go-ansible/pkg/playbook"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ec2"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ecr"
@@ -29,7 +25,7 @@ type Node struct {
 	kubeconfig string
 }
 
-func upsertInitialStack(ctx *pulumi.Context, common Common) error {
+func upsertLocalStack(ctx *pulumi.Context, common Common) error {
 	bucket, err := s3.NewBucket(ctx, common.name, &s3.BucketArgs{
 		Acl: pulumi.String("private"),
 	})
@@ -42,7 +38,7 @@ func upsertInitialStack(ctx *pulumi.Context, common Common) error {
 	return nil
 }
 
-func upsertSecondaryStack(ctx *pulumi.Context, common Common, master Node, worker Node) error {
+func upsertRemoteStack(ctx *pulumi.Context, common Common, master Node, worker Node) error {
 	zones, err := aws.GetAvailabilityZones(ctx, nil)
 	if err != nil {
 		return err
@@ -228,33 +224,4 @@ func upsertSecondaryStack(ctx *pulumi.Context, common Common, master Node, worke
 	ctx.Export("worker-ip", workerInstance.PublicIp)
 
 	return nil
-}
-
-func (n *Node) setupK0s(ctx context.Context, common Common) error {
-	ansiblePlaybookConnectionOptions := &options.AnsibleConnectionOptions{
-		User: common.user,
-	}
-
-	ansiblePlaybookOptions := &playbook.AnsiblePlaybookOptions{
-		Inventory: fmt.Sprintf("%s,", n.ip), //That comma is required
-	}
-
-	privilegeEscalationOptions := &options.AnsiblePrivilegeEscalationOptions{
-		Become: true,
-	}
-
-	playbookCmd := &playbook.AnsiblePlaybookCmd{
-		Playbooks: []string{
-			fmt.Sprintf("assets/playbooks/%s.yaml", n.role),
-		},
-		ConnectionOptions:          ansiblePlaybookConnectionOptions,
-		Options:                    ansiblePlaybookOptions,
-		PrivilegeEscalationOptions: privilegeEscalationOptions,
-	}
-	err := playbookCmd.Run(ctx)
-	if err != nil {
-		return err
-	}
-
-	return err
 }

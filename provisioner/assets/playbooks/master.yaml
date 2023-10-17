@@ -16,7 +16,7 @@
           pgrep k0s
       register: k0s_running
       ignore_errors: true
-    - name: Start k0s master
+    - name: Install and start k0s master
       when: k0s_running.rc != 0
       ansible.builtin.shell:
         cmd: |
@@ -32,10 +32,10 @@
     - name: Download token
       ansible.builtin.fetch:
         src: /tmp/token
-        dest: ./../../tmp/token
+        dest: {{ config_dir }}/token
         flat: yes
     - name: Download kubeconfig
       ansible.builtin.fetch:
         src: /tmp/kubeconfig
-        dest: ./../../tmp/kubeconfig
+        dest: {{ config_dir }}/kubeconfig
         flat: yes

@@ -2,37 +2,59 @@ package main
 
 import (
 	"context"
-	"flag"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/pulumi/pulumi/sdk/v3/go/auto/optup"
-	"github.com/spf13/pflag"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto/optup"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
-func main() {
-	pflag.String("name", "infralink", "name for some AWS resources")
-	pflag.String("instance", "t3a.micro", "AWS EC2 instance type") //TODO - find a way to make AMI with packer for ARM
-	pflag.String("ami", "ami-09ca9cb836d95b14c", "AWS AMI ID")
-	pflag.String("user", "ubuntu", "AWS EC2 system user")
-	pflag.String("key", "/path/to/your/id_rsa.pub", "SSH public key path")
-	pflag.String("config", "config.toml", "config file path")
-	pflag.Bool("verbose", false, "toggle verbosity (warning: outputs sensitive information)")
+type auth struct {
+	Auth string `json:"auth"`
+}
 
-	//TODO - find a way to get rid of the glog CLI flags
-	//CLI
-	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
-	pflag.Parse()
-	err := viper.BindPFlags(pflag.CommandLine)
+type dockerConfig struct {
+	Auths map[string]auth `json:"auths"`
+}
+
+func check(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func main() {
+	homeDir, err := os.UserHomeDir()
+	check(err)
+
+	configDir := filepath.Join(homeDir, ".infralink")
+	configFile := filepath.Join(configDir, "config.toml")
+	dockerFile := filepath.Join(configDir, "config.json")
+	kubeconfigFile := filepath.Join(configDir, "kubeconfig")
+
+	pflag.String("name", "infralink", "AWS resource names/tags")
+	pflag.String("instance", "t3a.micro", "AWS EC2 instance type") //TODO - find a way to make AMI with packer for ARM
+	pflag.String("ami", "ami-09ca9cb836d95b14c", "AWS AMI ID")
+	pflag.String("user", "ubuntu", "AWS EC2 system user")
+	pflag.String("key", filepath.Join(homeDir, ".ssh", "id_rsa.pub"), "SSH public key path")
+	pflag.Bool("verbose", false, "toggle verbosity (warning: outputs sensitive information)")
+
+	//CLI
+	pflag.Parse()
+	err = viper.BindPFlags(pflag.CommandLine)
+	check(err)
 
 	//Environment
 	viper.SetEnvPrefix("INFRALINK")
@@ -41,18 +63,28 @@ func main() {
 	viper.SetEnvKeyReplacer(replacer)
 
 	//File
-	config := viper.GetString("config")
-	_, err = os.ReadFile(config)
+	_, err = os.ReadFile(configFile)
 	if err == nil {
-		viper.SetConfigFile(config)
+		viper.SetConfigFile(configFile)
 		err = viper.ReadInConfig()
-		if err != nil {
-			log.Fatal(err)
-		}
+		check(err)
+
 		viper.OnConfigChange(func(e fsnotify.Event) {
 			fmt.Println("Config file changed:", e.Name)
 		})
+
 		viper.WatchConfig()
+	} else if errors.Is(err, os.ErrNotExist) {
+		err = os.Mkdir(configDir, 0700)
+		if !errors.Is(err, os.ErrExist) {
+			check(err)
+		}
+
+		file, err := os.OpenFile(configFile, os.O_CREATE, 0600)
+		check(err)
+		defer file.Close()
+	} else {
+		check(err)
 	}
 
 	name := viper.GetString("name")
@@ -80,23 +112,17 @@ func main() {
 	ctx := context.Background()
 
 	initialStack, err := auto.UpsertStackInlineSource(ctx, "aws", "infralink", func(ctx *pulumi.Context) error {
-		return upsertInitialStack(ctx, common)
+		return upsertLocalStack(ctx, common)
 	})
-	if err != nil {
-		log.Fatal(err)
-	}
+	check(err)
 
 	wsInitial := initialStack.Workspace()
 
 	err = wsInitial.InstallPlugin(ctx, "aws", "v6.0.3")
-	if err != nil {
-		log.Fatal(err)
-	}
+	check(err)
 
 	_, err = initialStack.Refresh(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
+	check(err)
 
 	var initialUpResult auto.UpResult
 
@@ -105,34 +131,23 @@ func main() {
 	} else {
 		initialUpResult, err = initialStack.Up(ctx)
 	}
-
-	if err != nil {
-		log.Fatal(err)
-	}
+	check(err)
 
 	err = os.Setenv("PULUMI_BACKEND_URL", fmt.Sprintf("s3://%s", initialUpResult.Outputs["bucket"].Value))
-	if err != nil {
-		log.Fatal(err)
-	}
+	check(err)
 
 	secondaryStack, err := auto.UpsertStackInlineSource(ctx, "aws", "infralink", func(ctx *pulumi.Context) error {
-		return upsertSecondaryStack(ctx, common, master, worker)
+		return upsertRemoteStack(ctx, common, master, worker)
 	})
-	if err != nil {
-		log.Fatal(err)
-	}
+	check(err)
 
 	wsSecondary := secondaryStack.Workspace()
 
 	err = wsSecondary.InstallPlugin(ctx, "aws", "v6.0.3")
-	if err != nil {
-		log.Fatal(err)
-	}
+	check(err)
 
 	_, err = secondaryStack.Refresh(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
+	check(err)
 
 	var secondaryUpResult auto.UpResult
 
@@ -141,38 +156,45 @@ func main() {
 	} else {
 		secondaryUpResult, err = secondaryStack.Up(ctx)
 	}
+	check(err)
+
+	//TODO - probably a bad way of checking if smth is working/not working
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigFile)
+	check(err)
+
+	_, err = kubernetes.NewForConfig(config)
 	if err != nil {
-		log.Fatal(err)
-	}
+		master.ip = fmt.Sprintf("%s", secondaryUpResult.Outputs["master-ip"].Value)
 
-	master.ip = fmt.Sprintf("%s", secondaryUpResult.Outputs["master-ip"].Value)
+		err = master.setupK0s(ctx, common, configDir)
+		check(err)
 
-	err = master.setupK0s(ctx, common)
-	if err != nil {
-		log.Fatal(err)
-	}
+		worker.ip = fmt.Sprintf("%s", secondaryUpResult.Outputs["worker-ip"].Value)
 
-	worker.ip = fmt.Sprintf("%s", secondaryUpResult.Outputs["worker-ip"].Value)
-
-	err = worker.setupK0s(ctx, common)
-	if err != nil {
-		log.Fatal(err)
+		err = worker.setupK0s(ctx, common, configDir)
+		check(err)
 	}
 
 	repository := fmt.Sprintf("%s", secondaryUpResult.Outputs["repository"].Value)
 	username := fmt.Sprintf("%s", secondaryUpResult.Outputs["username"].Value)
 	password := fmt.Sprintf("%s", secondaryUpResult.Outputs["password"].Value)
-	token := fmt.Sprintf("%s", secondaryUpResult.Outputs["token"].Value)
 
-	viper.Set("repository", repository)
-	err = viper.WriteConfigAs(config)
+	dockerConfigs := dockerConfig{Auths: map[string]auth{
+		repository: {
+			Auth: base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", username, password))),
+		},
+	}}
+
+	configJSON, err := json.MarshalIndent(dockerConfigs, "", "    ")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Printf("Error marshaling JSON: %s\n", err)
+		os.Exit(1)
 	}
 
-	//TODO - must be moved to another bin or behind another flag...
-	err = pushImage(repository, username, password, token)
-	if err != nil {
-		log.Fatal(err)
-	}
+	f, err := os.OpenFile(dockerFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+	check(err)
+	defer f.Close()
+
+	_, err = f.WriteString(fmt.Sprintf("%s", configJSON))
+	check(err)
 }

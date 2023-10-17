@@ -5,20 +5,17 @@
   tasks:
     - name: Upload token
       ansible.builtin.copy:
-        src: ./../../tmp/token
+        src: {{ config_dir }}/token
         dest: /tmp/token
-    - name: Configure k0s worker
-      ansible.builtin.shell:
-        cmd: |
-          k0s install worker --token-file /tmp/token
     - name: Check if k0s is running
       ansible.builtin.shell:
         cmd: |
           pgrep k0s
       register: k0s_running
       ignore_errors: true
-    - name: Start k0s worker
+    - name: Install and start k0s worker
       when: k0s_running.rc != 0
       ansible.builtin.shell:
         cmd: |
+          k0s install worker --enable-cloud-provider --token-file /tmp/token
           k0s start
