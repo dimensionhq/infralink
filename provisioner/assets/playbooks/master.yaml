@@ -32,10 +32,10 @@
     - name: Download token
       ansible.builtin.fetch:
         src: /tmp/token
-        dest: {{ config_dir }}/token
+        dest: "{{ config_dir }}/token"
         flat: yes
     - name: Download kubeconfig
       ansible.builtin.fetch:
         src: /tmp/kubeconfig
-        dest: {{ config_dir }}/kubeconfig
+        dest: "{{ config_dir }}/kubeconfig"
         flat: yes

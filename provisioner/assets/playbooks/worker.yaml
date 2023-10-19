@@ -5,7 +5,7 @@
   tasks:
     - name: Upload token
       ansible.builtin.copy:
-        src: {{ config_dir }}/token
+        src: "{{ config_dir }}/token"
         dest: /tmp/token
     - name: Check if k0s is running
       ansible.builtin.shell:

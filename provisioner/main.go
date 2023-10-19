@@ -17,8 +17,6 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 type auth struct {
@@ -111,6 +109,14 @@ func main() {
 
 	ctx := context.Background()
 
+	//TODO - find a better way
+	err = os.Setenv("PULUMI_BACKEND_URL", fmt.Sprintf("file://%s", configDir))
+	check(err)
+
+	//TODO - find a better way, do not hardcode?
+	err = os.Setenv("PULUMI_CONFIG_PASSPHRASE", "your-passphrase")
+	check(err)
+
 	initialStack, err := auto.UpsertStackInlineSource(ctx, "aws", "infralink", func(ctx *pulumi.Context) error {
 		return upsertLocalStack(ctx, common)
 	})
@@ -133,6 +139,7 @@ func main() {
 	}
 	check(err)
 
+	//TODO - find a better way
 	err = os.Setenv("PULUMI_BACKEND_URL", fmt.Sprintf("s3://%s", initialUpResult.Outputs["bucket"].Value))
 	check(err)
 
@@ -159,10 +166,7 @@ func main() {
 	check(err)
 
 	//TODO - probably a bad way of checking if smth is working/not working
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigFile)
-	check(err)
-
-	_, err = kubernetes.NewForConfig(config)
+	kf, err := os.OpenFile(kubeconfigFile, os.O_RDONLY, 0600)
 	if err != nil {
 		master.ip = fmt.Sprintf("%s", secondaryUpResult.Outputs["master-ip"].Value)
 
@@ -174,6 +178,7 @@ func main() {
 		err = worker.setupK0s(ctx, common, configDir)
 		check(err)
 	}
+	defer kf.Close()
 
 	repository := fmt.Sprintf("%s", secondaryUpResult.Outputs["repository"].Value)
 	username := fmt.Sprintf("%s", secondaryUpResult.Outputs["username"].Value)
@@ -191,10 +196,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	f, err := os.OpenFile(dockerFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+	df, err := os.OpenFile(dockerFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
 	check(err)
-	defer f.Close()
+	defer df.Close()
 
-	_, err = f.WriteString(fmt.Sprintf("%s", configJSON))
+	_, err = df.WriteString(fmt.Sprintf("%s", configJSON))
 	check(err)
 }
