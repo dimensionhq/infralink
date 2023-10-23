@@ -40,10 +40,10 @@ func main() {
 	configDir := filepath.Join(homeDir, ".infralink")
 	configFile := filepath.Join(configDir, "config.toml")
 	dockerFile := filepath.Join(configDir, "config.json")
-	kubeconfigFile := filepath.Join(configDir, "kubeconfig")
+	//kubeconfigFile := filepath.Join(configDir, "kubeconfig")
 
 	pflag.String("name", "infralink", "AWS resource names/tags")
-	pflag.String("instance", "t3a.micro", "AWS EC2 instance type") //TODO - find a way to make AMI with packer for ARM
+	pflag.String("instance-type", "t3a.micro", "AWS EC2 instance type") //TODO - find a way to make AMI with packer for ARM
 	pflag.String("ami", "ami-09ca9cb836d95b14c", "AWS AMI ID")
 	pflag.String("user", "ubuntu", "AWS EC2 system user")
 	pflag.String("key", filepath.Join(homeDir, ".ssh", "id_rsa.pub"), "SSH public key path")
@@ -87,18 +87,19 @@ func main() {
 
 	name := viper.GetString("name")
 	ami := viper.GetString("ami")
-	instance := viper.GetString("instance")
+	instanceType := viper.GetString("instance-type")
 	user := viper.GetString("user")
 	key := viper.GetString("key")
 	verbose := viper.GetBool("verbose")
 
 	common := Common{
-		name:     name,
-		key:      key,
-		instance: instance,
-		user:     user,
-		ami:      ami,
-		verbose:  verbose,
+		name:         name,
+		key:          key,
+		instanceType: instanceType,
+		user:         user,
+		ami:          ami,
+		verbose:      verbose,
+		configDir:    configDir,
 	}
 	master := Node{
 		role: "master",
@@ -165,20 +166,26 @@ func main() {
 	}
 	check(err)
 
+	common.region = fmt.Sprintf("%s", secondaryUpResult.Outputs["region"].Value)
+
 	//TODO - probably a bad way of checking if smth is working/not working
-	kf, err := os.OpenFile(kubeconfigFile, os.O_RDONLY, 0600)
-	if err != nil {
-		master.ip = fmt.Sprintf("%s", secondaryUpResult.Outputs["master-ip"].Value)
+	//kf, err := os.OpenFile(kubeconfigFile, os.O_RDONLY, 0600)
+	//if err != nil {
+	master.ip = fmt.Sprintf("%s", secondaryUpResult.Outputs["master-ip-public"].Value)
+	masterIPDashes := strings.Replace(fmt.Sprintf("%s", secondaryUpResult.Outputs["master-ip-private"].Value), ".", "-", -1)
+	master.hostname = fmt.Sprintf("ip-%s.%s.compute.internal", masterIPDashes, common.region)
 
-		err = master.setupK0s(ctx, common, configDir)
-		check(err)
+	err = master.setupK0s(ctx, common)
+	check(err)
 
-		worker.ip = fmt.Sprintf("%s", secondaryUpResult.Outputs["worker-ip"].Value)
+	worker.ip = fmt.Sprintf("%s", secondaryUpResult.Outputs["worker-ip-public"].Value)
+	workerIPDashes := strings.Replace(fmt.Sprintf("%s", secondaryUpResult.Outputs["worker-ip-private"].Value), ".", "-", -1)
+	worker.hostname = fmt.Sprintf("ip-%s.%s.compute.internal", workerIPDashes, common.region)
 
-		err = worker.setupK0s(ctx, common, configDir)
-		check(err)
-	}
-	defer kf.Close()
+	err = worker.setupK0s(ctx, common)
+	check(err)
+	//}
+	//defer kf.Close()
 
 	repository := fmt.Sprintf("%s", secondaryUpResult.Outputs["repository"].Value)
 	username := fmt.Sprintf("%s", secondaryUpResult.Outputs["username"].Value)

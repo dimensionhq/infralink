@@ -21,7 +21,7 @@ You can edit the configuration file under `~/.infralink/config.toml`, e.g.
 
 ```toml
 ami='ami-09ca9cb836d95b14c'
-instance='t3a.micro'
+instance-type='t3a.micro'
 key='~/.ssh/id_rsa.pub'
 name='infralink'
 user='ubuntu'
@@ -32,7 +32,7 @@ or you can pass the respective environment variables:
 
 ```dotenv
 INFRALINK_AMI='ami-09ca9cb836d95b14c'
-INFRALINK_INSTANCE='t3a.micro'
+INFRALINK_INSTANCE_TYPE='t3a.micro'
 INFRALINK_KEY='~/.ssh/id_rsa.pub'
 INFRALINK_NAME='infralink'
 INFRALINK_USER='ubuntu'

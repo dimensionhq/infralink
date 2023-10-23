@@ -3,6 +3,9 @@
   hosts: all
   become: true
   tasks:
+    - name: Set the hostname
+      ansible.builtin.hostname:
+        name: "{{ hostname }}"
     - name: Upload token
       ansible.builtin.copy:
         src: "{{ config_dir }}/token"

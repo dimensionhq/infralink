@@ -3,6 +3,9 @@
   hosts: all
   become: true
   tasks:
+    - name: Set the hostname
+      ansible.builtin.hostname:
+        name: "{{ hostname }}"
     - name: Configure k0s master
       ansible.builtin.shell:
         cmd: |
@@ -20,7 +23,7 @@
       when: k0s_running.rc != 0
       ansible.builtin.shell:
         cmd: |
-          k0s install controller -c /etc/k0s/k0s.yaml
+          k0s install controller -c /etc/k0s/k0s.yaml --enable-cloud-provider --enable-worker 
           k0s start
     - name: Generate token and kubectl
       ansible.builtin.shell:
@@ -29,6 +32,22 @@
           k0s kubeconfig admin > /tmp/kubeconfig-local
           export IP=$(curl -s ipv4.icanhazip.com)
           yq ".clusters[0].cluster.server = \"https://$IP:6443\"" < /tmp/kubeconfig-local > /tmp/kubeconfig
+    - name: Install Helm
+      ansible.builtin.shell:
+        cmd: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+    - name: Install AWS Cloud Controller Manager
+      ansible.builtin.shell:
+        cmd: |
+          helm --kubeconfig /tmp/kubeconfig-local repo add aws-cloud-controller-manager https://kubernetes.github.io/cloud-provider-aws
+          helm --kubeconfig /tmp/kubeconfig-local repo update
+          helm --kubeconfig /tmp/kubeconfig-local upgrade --install aws-cloud-controller-manager aws-cloud-controller-manager/aws-cloud-controller-manager \
+            --set-string tolerations[0].key=node-role.kubernetes.io/master \
+            --set-string tolerations[0].effect=NoSchedule \
+            --set-string tolerations[1].key=node.cloudprovider.kubernetes.io/uninitialized \
+            --set-string tolerations[1].value=true \
+            --set-string tolerations[1].effect=NoSchedule \
+            --set-string nodeSelector."node\-role\.kubernetes\.io\/control\-plane"=true
     - name: Download token
       ansible.builtin.fetch:
         src: /tmp/token

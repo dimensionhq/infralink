@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/iam"
 	"os"
 
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws"
@@ -11,18 +13,21 @@ import (
 )
 
 type Common struct {
-	name     string
-	key      string
-	user     string
-	ami      string
-	instance string
-	verbose  bool
+	name         string
+	key          string
+	user         string
+	ami          string
+	instanceType string
+	verbose      bool
+	configDir    string
+	region       string
 }
 
 type Node struct {
 	role       string
 	ip         string
 	kubeconfig string
+	hostname   string
 }
 
 func upsertLocalStack(ctx *pulumi.Context, common Common) error {
@@ -39,6 +44,13 @@ func upsertLocalStack(ctx *pulumi.Context, common Common) error {
 }
 
 func upsertRemoteStack(ctx *pulumi.Context, common Common, master Node, worker Node) error {
+	region, err := aws.GetRegion(ctx, nil, nil)
+	if err != nil {
+		return err
+	}
+
+	ctx.Export("region", pulumi.String(region.Name))
+
 	zones, err := aws.GetAvailabilityZones(ctx, nil)
 	if err != nil {
 		return err
@@ -160,10 +172,37 @@ func upsertRemoteStack(ctx *pulumi.Context, common Common, master Node, worker N
 		SubnetId:     subnetMaster.ID(),
 	})
 
+	tmpJSON0, err := json.Marshal(map[string]interface{}{
+		"Version": "2012-10-17",
+		"Statement": []map[string]interface{}{
+			map[string]interface{}{
+				"Action": "sts:AssumeRole",
+				"Effect": "Allow",
+				"Sid":    "",
+				"Principal": map[string]interface{}{
+					"Service": "ec2.amazonaws.com",
+				},
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
+	json0 := string(tmpJSON0)
+	_, err = iam.NewRole(ctx, "testRole", &iam.RoleArgs{
+		AssumeRolePolicy: pulumi.String(json0),
+		Tags: pulumi.StringMap{
+			"tag-key": pulumi.String("tag-value"),
+		},
+	})
+	if err != nil {
+		return err
+	}
+
 	masterInstance, err := ec2.NewInstance(ctx, "master", &ec2.InstanceArgs{
 		KeyName:      keypair.KeyName,
 		Ami:          pulumi.String(common.ami),
-		InstanceType: pulumi.String(common.instance),
+		InstanceType: pulumi.String(common.instanceType),
 		Tags: pulumi.StringMap{
 			"Name": pulumi.String(master.role),
 		},
@@ -176,7 +215,8 @@ func upsertRemoteStack(ctx *pulumi.Context, common Common, master Node, worker N
 		return err
 	}
 
-	ctx.Export("master-ip", masterInstance.PublicIp)
+	ctx.Export("master-ip-public", masterInstance.PublicIp)
+	ctx.Export("master-ip-private", masterInstance.PrivateIp)
 
 	//Worker setup
 	//TODO - move to a common func
@@ -208,7 +248,7 @@ func upsertRemoteStack(ctx *pulumi.Context, common Common, master Node, worker N
 	workerInstance, err := ec2.NewInstance(ctx, "worker", &ec2.InstanceArgs{
 		KeyName:      keypair.KeyName,
 		Ami:          pulumi.String(common.ami),
-		InstanceType: pulumi.String(common.instance),
+		InstanceType: pulumi.String(common.instanceType),
 		Tags: pulumi.StringMap{
 			"Name": pulumi.String(worker.role),
 		},
@@ -221,7 +261,8 @@ func upsertRemoteStack(ctx *pulumi.Context, common Common, master Node, worker N
 		return err
 	}
 
-	ctx.Export("worker-ip", workerInstance.PublicIp)
+	ctx.Export("worker-ip-public", workerInstance.PublicIp)
+	ctx.Export("worker-ip-private", workerInstance.PrivateIp)
 
 	return nil
 }

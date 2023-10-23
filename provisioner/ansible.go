@@ -7,7 +7,7 @@ import (
 	"github.com/apenella/go-ansible/pkg/playbook"
 )
 
-func (n *Node) setupK0s(ctx context.Context, common Common, configDir string) error {
+func (n *Node) setupK0s(ctx context.Context, common Common) error {
 	ansiblePlaybookConnectionOptions := &options.AnsibleConnectionOptions{
 		User: common.user,
 	}
@@ -15,7 +15,8 @@ func (n *Node) setupK0s(ctx context.Context, common Common, configDir string) er
 	ansiblePlaybookOptions := &playbook.AnsiblePlaybookOptions{
 		Inventory: fmt.Sprintf("%s,", n.ip), //That comma is required
 		ExtraVars: map[string]interface{}{
-			"config_dir": configDir,
+			"config_dir": common.configDir,
+			"hostname":   n.hostname,
 		},
 	}
 
