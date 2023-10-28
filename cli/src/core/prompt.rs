@@ -107,7 +107,7 @@ pub fn remain_not_logged_in() -> Result<bool> {
 
 - 🖥️  Dashboard
 - 🔗 Automatic deploys from GitHub
-- 📊 Usage analytics 
+- 📊 Usage analytics
 - 🔍 Cost estimations
 - 📝 Detailed logging and monitoring
 - 💵 Predictive analytics with up-to 200% savings

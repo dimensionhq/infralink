@@ -6,6 +6,14 @@ use serde::{Deserialize, Serialize};
 use super::{architecture::Architecture, cloud_provider::CloudProvider, region::Region};
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct RegistryCredentials {
+    pub name: String,
+    pub tag: String,
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct InfrastructureConfiguration {
     // high-level information about the user's app
     pub app: App,
@@ -64,6 +72,23 @@ pub struct Build {
 impl InfrastructureConfiguration {
     pub fn builder() -> InfrastructureConfigurationBuilder {
         InfrastructureConfigurationBuilder::new()
+    }
+
+    pub fn registry(&self) -> RegistryCredentials {
+        let path = dirs::home_dir()
+            .unwrap()
+            .join(".infralink/")
+            .join(self.app.name.clone())
+            .join("registry.toml");
+
+        if path.exists() {
+            let configuration: RegistryCredentials =
+                toml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+
+            configuration
+        } else {
+            panic!("Registry creds not found.");
+        }
     }
 
     pub fn load<P: ToString>(path: Option<P>) -> Self {

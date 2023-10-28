@@ -6,26 +6,13 @@ use nixpacks::nixpacks::{
 
 use types::{architecture::Architecture, config::InfrastructureConfiguration};
 
-pub async fn execute() -> Result<()> {
+pub async fn execute(image_name: String) -> Result<()> {
     // Load the current configuration
     let configuration = InfrastructureConfiguration::load::<&str>(None);
 
     // Check if the user's directory doesn't already have a Dockerfile they want to use
     if !std::path::Path::new("./Dockerfile").exists() {
-        let name = Some(format!(
-            "infralink-build-{}-{}",
-            std::env::current_dir()
-                .unwrap()
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap(),
-            configuration
-                .app
-                .architecture
-                .clone()
-                .unwrap_or(Architecture::Arm64)
-        ));
+        let name = Some(image_name);
 
         let start = std::time::Instant::now();
 

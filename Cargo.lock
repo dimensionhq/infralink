@@ -745,9 +745,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-account"
-version = "0.31.1"
+version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dee3e0de5195790b10462e1a0e84806fab7af37aea8dc43778344512ede39c7e"
+checksum = "06577bb8d222dd13297777c2de81285db2acc26be6267975b1c3e0f0091d7869"
 dependencies = [
  "aws-credential-types",
  "aws-http",

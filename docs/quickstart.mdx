@@ -1,53 +1,100 @@
 ---
-title: 'Quickstart'
-description: 'Start building awesome documentation in under 5 minutes'
+title: "Quickstart"
+description: "Deploy your first app in 2 minutes."
 ---
 
-## Setup your development
+## Install the Infra CLI
 
-Learn how to update your docs locally and and deploy them to the public.
+<Tabs>
+  <Tab title="MacOS">```brew install infralink ```</Tab>
+  <Tab title="Windows">
+    ```winget install infralink``` or [Use the Installer]()
+  </Tab>
+  <Tab title="Linux">``` sudo apt get infralink ```</Tab>
+</Tabs>
 
-### Edit and preview
+### Create an `infra.toml` configuration files
 
-<AccordionGroup>
-  <Accordion icon="github" title="Clone your docs locally">
-    During the onboarding process, we created a repository on your Github with
-    your docs content. You can find this repository on our
-    [dashboard](https://dashboard.mintlify.com). To clone the repository
-    locally, follow these
-    [instructions](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository)
-    in your terminal.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Preview changes">
-    Previewing helps you make sure your changes look as intended. We built a
-    command line interface to render these changes locally. 1. Install the
-    [Mintlify CLI](https://www.npmjs.com/package/mintlify) to preview the
-    documentation changes locally with this command: ``` npm i -g mintlify ```
-    2. Run the following command at the root of your documentation (where
-    `mint.json` is): ``` mintlify dev ```
-  </Accordion>
-</AccordionGroup>
+Run `infra init` to create a new `infra.toml` configuration file in your current directory:
 
-### Deploy your changes
+```sh
+infra init
+```
 
-<AccordionGroup>
+You'll see a prompt asking you whether or not you'd like to login:
 
-<Accordion icon="message-bot" title="Install our Github app">
-  Our Github app automatically deploys your changes to your docs site, so you
-  don't need to manage deployments yourself. You can find the link to install on
-  your [dashboard](https://dashboard.mintlify.com). Once the bot has been
-  successfully installed, there should be a check mark next to the commit hash
-  of the repo.
-</Accordion>
-<Accordion icon="rocket" title="Push your changes">
-  [Commit and push your changes to
-  Git](https://docs.github.com/en/get-started/using-git/pushing-commits-to-a-remote-repository#about-git-push)
-  for your changes to update in your docs site. If you push and don't see that
-  the Github app successfully deployed your changes, you can also manually
-  update your docs through our [dashboard](https://dashboard.mintlify.com).
-</Accordion>
+```
+You're not currently logged in to Infralink Cloud. Infralink Cloud comes with the following benefits:
 
-</AccordionGroup>
+- 🖥️  Dashboard
+- 🔗 Automatic deploys from GitHub
+- 📊 Usage analytics
+- 🔍 Cost estimations
+- 📝 Detailed logging and monitoring
+- 💵 Predictive analytics with up-to 200% savings
+- 🚀 Up-to 10x faster deployments with more powerful machines and collaborative caching
+- 🙋 Support from K8s experts
+- 🛡️  Advanced security compliance
+
+Get started for free with infra login.
+
+> Would you like to login?
+```
+
+You can still use the CLI and deploy without logging in to Infralink Cloud, but you'll miss out on the benefits listed above. If you'd like to login, hit yes. Otherwise, hit no.
+
+Next, you'll be asked to select an app name. This defaults to your current directory name:
+
+```
+> app name: (path)
+```
+
+You'll then be asked to select a cloud provider:
+
+```
+> cloud provider:
+> aws
+  azure
+  gcp
+  oracle
+[↑↓ to move, enter to select, type to filter]
+```
+
+Once you've selected a cloud provider, you'll be enter your credentials for that provider. For example, if you selected AWS, you'll be asked for your AWS access key ID and secret access key.
+
+These credentials are securely stored in your local machine's keychain.
+
+Finally, select a region to deploy your app to.
+
+Once you've completed this, you'll see a success message:
+
+```
+🎉 You're now ready to deploy your app. Run infra deploy to start.
+```
+
+This means that your [infra.toml configuration file](/configuration) has been created. It should look like this:
+
+```toml
+[app]
+name = "cli"
+cloud_provider = "aws"
+region = "us-east-1"
+```
+
+### Deploy your app
+
+Once you've run `infra init` and verified your [`infra.toml` configuration](/configuration) file is correctly setup for your use case, you can deploy your app with:
+
+```
+infra deploy
+```
+
+A docker container for your app will automatically be built based on your codebase. This process, in addition to the infrastructure provisioning process may take a few minutes.
+
+<Note>
+  Your first deploy will be slower than incremental deploys as infrastructure
+  takes time to provision.
+</Note>
 
 ## Update your docs
 

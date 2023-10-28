@@ -74,10 +74,7 @@ pub async fn update_spot_pricing_for_region(
 
         let instance_price = convert_to_spot_instance(price);
 
-        latest_prices
-            .entry(az)
-            .or_default()
-            .push(instance_price);
+        latest_prices.entry(az).or_default().push(instance_price);
     }
 
     crate::db::insert::spot_pricing_in_bulk(

@@ -4,7 +4,7 @@ use linked_hash_map::LinkedHashMap;
 pub enum ValidatedOptions {
     Init {},
     Help {},
-    Build {},
+    Deploy {},
     None,
 }
 
@@ -15,8 +15,8 @@ pub fn validate(
 ) -> ValidatedOptions {
     match command {
         "init" => ValidatedOptions::Init {},
-        "build" => ValidatedOptions::Build {},
         "help" => ValidatedOptions::Help {},
+        "deploy" => ValidatedOptions::Deploy {},
         _ => ValidatedOptions::None,
     }
 }
