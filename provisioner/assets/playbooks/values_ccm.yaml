@@ -1,0 +1,11 @@
+tolerations:
+  - key: "node-role.kubernetes.io/master"
+    effect: "NoSchedule"
+  - key: "node.cloudprovider.kubernetes.io/uninitialized"
+    value: "true"
+    effect: "NoSchedule"
+nodeSelector:
+  node-role.kubernetes.io/control-plane: "true"
+args:
+  - "--v=2"
+  - "--cloud-provider=aws"

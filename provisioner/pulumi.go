@@ -2,12 +2,13 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/iam"
+	"fmt"
 	"os"
 
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ec2"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ecr"
+	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/iam"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/s3"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
@@ -58,6 +59,9 @@ func upsertRemoteStack(ctx *pulumi.Context, common Common, master Node, worker N
 
 	vpc, err := ec2.NewVpc(ctx, "vpc", &ec2.VpcArgs{
 		CidrBlock: pulumi.StringPtr("172.0.0.0/16"),
+		Tags: pulumi.StringMap{
+			fmt.Sprintf("kubernetes.io/cluster/%s", common.name): pulumi.String("owned"),
+		},
 	})
 	if err != nil {
 		return err
@@ -65,6 +69,9 @@ func upsertRemoteStack(ctx *pulumi.Context, common Common, master Node, worker N
 
 	gateway, err := ec2.NewInternetGateway(ctx, "gateway", &ec2.InternetGatewayArgs{
 		VpcId: vpc.ID(),
+		Tags: pulumi.StringMap{
+			fmt.Sprintf("kubernetes.io/cluster/%s", common.name): pulumi.String("owned"),
+		},
 	})
 	if err != nil {
 		return err
@@ -108,6 +115,9 @@ func upsertRemoteStack(ctx *pulumi.Context, common Common, master Node, worker N
 			},
 		},
 		VpcId: vpc.ID(),
+		Tags: pulumi.StringMap{
+			fmt.Sprintf("kubernetes.io/cluster/%s", common.name): pulumi.String("owned"),
+		},
 	})
 	if err != nil {
 		return err
@@ -121,6 +131,9 @@ func upsertRemoteStack(ctx *pulumi.Context, common Common, master Node, worker N
 	keypair, err := ec2.NewKeyPair(ctx, "keypair", &ec2.KeyPairArgs{
 		KeyName:   pulumi.String(common.name), //TODO - should be named after the user/service
 		PublicKey: pulumi.String(key),
+		Tags: pulumi.StringMap{
+			fmt.Sprintf("kubernetes.io/cluster/%s", common.name): pulumi.String("owned"),
+		},
 	})
 	if err != nil {
 		return err
@@ -128,6 +141,9 @@ func upsertRemoteStack(ctx *pulumi.Context, common Common, master Node, worker N
 
 	repository, err := ecr.NewRepository(ctx, "repository", &ecr.RepositoryArgs{
 		Name: pulumi.String(common.name),
+		Tags: pulumi.StringMap{
+			fmt.Sprintf("kubernetes.io/cluster/%s", common.name): pulumi.String("owned"),
+		},
 	})
 	if err != nil {
 		return err
@@ -152,6 +168,9 @@ func upsertRemoteStack(ctx *pulumi.Context, common Common, master Node, worker N
 		VpcId:               vpc.ID(),
 		CidrBlock:           pulumi.StringPtr("172.0.1.0/24"),
 		MapPublicIpOnLaunch: pulumi.Bool(true),
+		Tags: pulumi.StringMap{
+			fmt.Sprintf("kubernetes.io/cluster/%s", common.name): pulumi.String("owned"),
+		},
 	})
 	if err != nil {
 		return err
@@ -165,6 +184,9 @@ func upsertRemoteStack(ctx *pulumi.Context, common Common, master Node, worker N
 				GatewayId: gateway.ID(),
 			},
 		},
+		Tags: pulumi.StringMap{
+			fmt.Sprintf("kubernetes.io/cluster/%s", common.name): pulumi.String("owned"),
+		},
 	})
 
 	_, err = ec2.NewRouteTableAssociation(ctx, "route-table-association-master", &ec2.RouteTableAssociationArgs{
@@ -172,10 +194,10 @@ func upsertRemoteStack(ctx *pulumi.Context, common Common, master Node, worker N
 		SubnetId:     subnetMaster.ID(),
 	})
 
-	tmpJSON0, err := json.Marshal(map[string]interface{}{
+	tmpJSON, err := json.Marshal(map[string]interface{}{
 		"Version": "2012-10-17",
 		"Statement": []map[string]interface{}{
-			map[string]interface{}{
+			{
 				"Action": "sts:AssumeRole",
 				"Effect": "Allow",
 				"Sid":    "",
@@ -188,22 +210,22 @@ func upsertRemoteStack(ctx *pulumi.Context, common Common, master Node, worker N
 	if err != nil {
 		return err
 	}
-	json0 := string(tmpJSON0)
-	_, err = iam.NewRole(ctx, "testRole", &iam.RoleArgs{
-		AssumeRolePolicy: pulumi.String(json0),
+	_, err = iam.NewRole(ctx, "role-master", &iam.RoleArgs{
+		AssumeRolePolicy: pulumi.String(tmpJSON),
 		Tags: pulumi.StringMap{
-			"tag-key": pulumi.String("tag-value"),
+			fmt.Sprintf("kubernetes.io/cluster/%s", common.name): pulumi.String("owned"),
 		},
 	})
 	if err != nil {
 		return err
 	}
 
-	masterInstance, err := ec2.NewInstance(ctx, "master", &ec2.InstanceArgs{
+	masterInstance, err := ec2.NewInstance(ctx, "instance-master", &ec2.InstanceArgs{
 		KeyName:      keypair.KeyName,
 		Ami:          pulumi.String(common.ami),
 		InstanceType: pulumi.String(common.instanceType),
 		Tags: pulumi.StringMap{
+			fmt.Sprintf("kubernetes.io/cluster/%s", common.name): pulumi.String("owned"),
 			"Name": pulumi.String(master.role),
 		},
 		SubnetId: subnetMaster.ID(),
@@ -225,6 +247,9 @@ func upsertRemoteStack(ctx *pulumi.Context, common Common, master Node, worker N
 		VpcId:               vpc.ID(),
 		CidrBlock:           pulumi.StringPtr("172.0.2.0/24"),
 		MapPublicIpOnLaunch: pulumi.Bool(true),
+		Tags: pulumi.StringMap{
+			fmt.Sprintf("kubernetes.io/cluster/%s", common.name): pulumi.String("owned"),
+		},
 	})
 	if err != nil {
 		return err
@@ -238,6 +263,9 @@ func upsertRemoteStack(ctx *pulumi.Context, common Common, master Node, worker N
 				GatewayId: gateway.ID(),
 			},
 		},
+		Tags: pulumi.StringMap{
+			fmt.Sprintf("kubernetes.io/cluster/%s", common.name): pulumi.String("owned"),
+		},
 	})
 
 	_, err = ec2.NewRouteTableAssociation(ctx, "route-table-association-worker", &ec2.RouteTableAssociationArgs{
@@ -245,12 +273,13 @@ func upsertRemoteStack(ctx *pulumi.Context, common Common, master Node, worker N
 		SubnetId:     subnetWorker.ID(),
 	})
 
-	workerInstance, err := ec2.NewInstance(ctx, "worker", &ec2.InstanceArgs{
+	workerInstance, err := ec2.NewInstance(ctx, "instance-worker", &ec2.InstanceArgs{
 		KeyName:      keypair.KeyName,
 		Ami:          pulumi.String(common.ami),
 		InstanceType: pulumi.String(common.instanceType),
 		Tags: pulumi.StringMap{
 			"Name": pulumi.String(worker.role),
+			fmt.Sprintf("kubernetes.io/cluster/%s", common.name): pulumi.String("owned"),
 		},
 		SubnetId: subnetWorker.ID(),
 		VpcSecurityGroupIds: pulumi.StringArray{

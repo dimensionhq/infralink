@@ -1,0 +1,22 @@
+apiVersion: k0s.k0sproject.io/v1beta1
+kind: Cluster
+metadata:
+  name: k0s
+spec:
+  api:
+    address: 192.168.68.106
+    sans:
+      - my-k0s-control.my-domain.com
+  network:
+    podCIDR: 10.244.0.0/16
+    serviceCIDR: 10.96.0.0/12
+extensions:
+  helm:
+    repositories:
+      - name: prometheus-community
+        url: https://prometheus-community.github.io/helm-charts
+    charts:
+      - name: prometheus-stack
+        chartname: prometheus-community/prometheus
+        version: "11.16.8"
+        namespace: default
